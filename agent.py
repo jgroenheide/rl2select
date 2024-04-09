@@ -4,7 +4,7 @@ import queue
 from pyscipopt import scip
 
 import utilities
-from selectors.nodesel_agent import NodeselAgent
+from nodesels.nodesel_agent import NodeselAgent
 
 
 class AgentPool:

@@ -2,7 +2,7 @@ import queue
 import utilities
 import numpy as np
 import torch as th
-from selectors.nodesel_baseline import NodeselDFS
+from nodesels.nodesel_baseline import NodeselDFS
 
 
 class NodeselAgent(NodeselDFS):

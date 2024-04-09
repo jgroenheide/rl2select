@@ -1,35 +1,26 @@
 import os
 import gzip
 import pickle
-
-import numpy as np
-import observation
-import recorders
 import utilities
 
-from selectors.nodesel_baseline import NodeselEstimate
+from nodesels.nodesel_baseline import NodeselEstimate
 
 
 # This class contains the sampler.
 # Valid states reached by the BestEstimate selector are saved.
 class NodeselOracle(NodeselEstimate):
-    def __init__(self, solutions, episode, instance, seed, out_queue, out_dir):
+    def __init__(self, solutions, episode, out_queue, out_dir):
         super().__init__()
         self.solutions = solutions
         self.episode = episode
-        self.instance = instance
-        self.seed = seed
         self.out_queue = out_queue
         self.out_dir = out_dir
 
-        self.mlp_sampler = recorders.SamplerMLP(self.model)
-        self.gnn_sampler = recorders.SamplerGNN()
-        self.sample_counter = 0
-
         # root node is always an oracle node
-        self.is_oracle_node = {1: True}
+        self.is_oracle_node = {1: 0}
         self.state_buffer = None
         self.action_counts = [0, 0, 0]
+        self.sample_counter = 0
 
     def nodeselect(self):
         depth = self.model.getDepth()
@@ -95,8 +86,6 @@ class NodeselOracle(NodeselEstimate):
         self.out_queue.put({
             'type': 'sample',
             'episode': self.episode,
-            'instance': self.instance,
-            'seed': self.seed,
             'filename': filename,
         })
 

@@ -6,13 +6,12 @@
 import os
 import glob
 import json
-import time
 import argparse
 import utilities
 import numpy as np
 import multiprocessing as mp
 
-from selectors.nodesel_oracle import NodeselOracle
+from nodesels.nodesel_oracle import NodeselOracle
 from utilities import log, init_scip_model
 
 
@@ -53,7 +52,7 @@ def make_samples(in_queue, out_queue, out_dir, time_limit):
             solution = m.readSolFile(solution_file)
             solutions.append(solution)
 
-        nodesel_oracle = NodeselOracle(solutions, episode, instance, seed, out_queue, out_dir)
+        nodesel_oracle = NodeselOracle(solutions, episode, out_queue, out_dir)
 
         m.includeNodesel(nodesel=nodesel_oracle,
                          name='sampler',

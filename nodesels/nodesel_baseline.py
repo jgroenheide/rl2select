@@ -3,35 +3,9 @@ import math
 import pyscipopt as scip
 
 
-class NodeselBaseline(scip.Nodesel):
-    """
-    The basic Node select class that all others extend.
-    Defines handle_pruning to... handle pruning?
-    """
-    def __init__(self, prune=False):
+class NodeselDFS(scip.Nodesel):
+    def __init__(self):
         super().__init__()
-    #   self.model = model
-        self.prune = prune
-
-    def handle_pruning(self, selnode):
-        if self.prune and self.model.getDepth() >= 0:
-            # There must be 2 nodes to choose from
-            _, children, _ = self.model.getOpenNodes()
-            assert len(children) == 2
-            # Selected node will not prune?
-            selnode.setPolicyPrune(False)
-            selnode_number = selnode.getNumber()
-            children_numbers = [x.getNumber() for x in children]  # size 2
-            # returns 0 for left child and 1 for right child?
-            node_child_index_prune = children_numbers.index(selnode_number)
-            selnode_sibling = children[1 - node_child_index_prune]
-            # Return selected node to initial state
-            selnode_sibling.setPolicyPrune(True)
-
-
-class NodeselDFS(NodeselBaseline):
-    def __init__(self, prune=False):
-        super().__init__(prune)
 
     def nodeselect(self):
         # Try getPrioChild
@@ -59,9 +33,9 @@ class NodeselDFS(NodeselBaseline):
         return 1 if depth1 < depth2 else -1
 
 
-class NodeselRestartDFS(NodeselBaseline):
-    def __init__(self, prune=False):
-        super().__init__(prune)
+class NodeselRestartDFS(scip.Nodesel):
+    def __init__(self):
+        super().__init__()
         self.last_restart = 0
         self.n_processed_leaves = 0
         self.select_best_freq = 100
@@ -100,12 +74,12 @@ class NodeselRestartDFS(NodeselBaseline):
         return int(node2.getNumber() - node1.getNumber())
 
 
-class NodeselEstimate(NodeselBaseline):
+class NodeselEstimate(scip.Nodesel):
     """
     Mimics the BestEstimate node selector of SCIP
     """
-    def __init__(self, prune=False):
-        super().__init__(prune)
+    def __init__(self):
+        super().__init__()
         self.min_plunge_depth = -1
         self.max_plunge_depth = -1
         self.max_plunge_quot = 0.25

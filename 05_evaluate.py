@@ -14,7 +14,7 @@ import argparse
 import numpy as np
 import pyscipopt as scip
 import utilities
-from selectors import nodesel_policy
+from nodesels import nodesel_policy
 
 if __name__ == "__main__":
     # read default config file
