@@ -55,7 +55,6 @@ def process(policy, data_loader, optimizer=None):
     training = optimizer is not None
     with th.set_grad_enabled(training):
         for state, action in data_loader:
-            print(action)
             # batch = batch.to(device)
             target = th.unsqueeze(action, -1).float()
             output = policy(*state)
@@ -231,9 +230,9 @@ if __name__ == "__main__":
             th.save(model.state_dict(), f'{running_dir}/best_params_il.pkl')
         elif scheduler.step_result == 1:  # NO_PATIENCE
             log(f'Epoch {epoch} | {scheduler.patience} epochs without improvement, lowering learning rate', logfile)
-        # elif scheduler.step_result == 2:  # ABORT
-        #     log(f'Epoch {epoch} | no improvements for {2 * scheduler.patience} epochs, early stopping', logfile)
-        #     break
+        elif scheduler.step_result == 2:  # ABORT
+            log(f'Epoch {epoch} | no improvements for {2 * scheduler.patience} epochs, early stopping', logfile)
+            break
 
     writer.close()
 

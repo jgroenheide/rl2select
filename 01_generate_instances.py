@@ -746,14 +746,10 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     rng = np.random.default_rng(args.seed)
-    # instance_config = [('train', 10000),
-    #                    ('valid', 2000),
-    #                    ('test', 100),
-    #                    ('transfer', 100)]
-    instance_config = [('train', 5),
-                       ('valid', 2),
-                       ('test', 1),
-                       ('transfer', 1)]
+    instance_config = [('train', 10000),
+                       ('valid', 2000),
+                       ('test', 100),
+                       ('transfer', 100)]
 
     instance_dir = f'data/{args.problem}/instances'
     if args.problem == 'indset':

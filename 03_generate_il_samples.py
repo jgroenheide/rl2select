@@ -35,13 +35,13 @@ def make_samples(in_queue, out_queue, out_dir, time_limit):
         # Fetch an instance...
         episode, instance, seed = in_queue.get()
         instance_id = f'[w {os.getpid()}] episode {episode}, seed {seed}'
-        print(f'{instance_id}, processing instance \'{instance}\'...')
+        print(f'{instance_id}: Processing instance \'{instance}\'...')
 
         # Retrieve available solution files
         solution_files = glob.glob(f'{instance[:-3]}-*.sol')
-        print(f"Retrieved {len(solution_files)} solutions")
+        print(f"{instance_id}: Retrieved {len(solution_files)} solutions")
         if len(solution_files) == 0:
-            print("ABORT: Not enough solutions")
+            print("ABORT: No solutions")
             continue
 
         # Initialize SCIP model
@@ -227,7 +227,7 @@ if __name__ == '__main__':
     )
     args = parser.parse_args()
 
-    time_limit = 60
+    time_limit = 300
     rng = np.random.default_rng(args.seed)
     difficulty = config['difficulty'][args.problem]
     for instance_type, num_samples in [('train', 400), ('valid', 150)]:
