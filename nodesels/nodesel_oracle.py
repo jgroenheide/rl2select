@@ -17,7 +17,7 @@ class NodeselOracle(NodeselEstimate):
         self.out_dir = out_dir
 
         # root node is always an oracle node
-        self.is_oracle_node = {1: 0}
+        self.is_sol_node = {1: 0}
         self.state_buffer = None
         self.action_counts = [0, 0, 0]
         self.sample_counter = 0
@@ -30,11 +30,11 @@ class NodeselOracle(NodeselEstimate):
 
         node = self.model.getCurrentNode()
         node_number = node.getNumber()
-        if node_number not in self.is_oracle_node:
+        if node_number not in self.is_sol_node:
             return super().nodeselect()
         # My children will be processed; my work is done
-        k = self.is_oracle_node[node_number]
-        del self.is_oracle_node[node_number]
+        k = self.is_sol_node[node_number]
+        del self.is_sol_node[node_number]
 
         if self.model.getNChildren() < 2:
             return super().nodeselect()
@@ -51,7 +51,7 @@ class NodeselOracle(NodeselEstimate):
                     if btype == 1 and sol[bvar] > bbound: break  # EXCEEDS UPPER BOUND
                 else:
                     child_number = child.getNumber()
-                    self.is_oracle_node[child_number] = k + sol_rank  # SATISFIES ALL BOUNDS
+                    self.is_sol_node[child_number] = k + sol_rank  # SATISFIES ALL BOUNDS
                     sol_ranks[child_index] = k + sol_rank
                     break  # break from solutions loop
 

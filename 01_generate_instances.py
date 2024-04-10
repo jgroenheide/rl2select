@@ -12,6 +12,7 @@ import utilities
 import numpy as np
 import scipy as sp
 import networkx as nx
+from tqdm import tqdm
 from itertools import combinations
 
 
@@ -758,9 +759,8 @@ if __name__ == '__main__':
             n_nodes = 1000 if instance_type == 'transfer' else 500
             out_dir = instance_dir + f'/{instance_type}_{n_nodes}_{affinity}'
             os.makedirs(out_dir); print(f"{num_instances} instances in {out_dir}")
-            for i in range(num_instances):
+            for i in tqdm(range(num_instances)):
                 filename = os.path.join(out_dir, f'instance_{i + 1}.lp')
-                print(f'  generating file {filename} ...')
                 graph = Graph.barabasi_albert(n_nodes, affinity, rng)
                 generate_indset(graph, filename)
 
@@ -771,9 +771,8 @@ if __name__ == '__main__':
             n_nodes = 80 if instance_type == 'transfer' else 60
             out_dir = instance_dir + f'/{instance_type}_{n_nodes}_{drop_rate}'
             os.makedirs(out_dir); print(f"{num_instances} instances in {out_dir}")
-            for i in range(num_instances):
+            for i in tqdm(range(num_instances)):
                 filename = os.path.join(out_dir, f'instance_{i + 1}.lp')
-                print(f'  generating file {filename} ...')
                 graph = Graph.erdos_renyi(n_nodes, edge_prob, rng)
                 generate_general_indset(graph, filename, drop_rate, rng)
 
@@ -784,9 +783,8 @@ if __name__ == '__main__':
             n_customers = 60 if instance_type == 'transfer' else 35
             out_dir = instance_dir + f'/{instance_type}_{n_customers}_{n_facilities}_{ratio}'
             os.makedirs(out_dir); print(f"{num_instances} instances in {out_dir}")
-            for i in range(num_instances):
+            for i in tqdm(range(num_instances)):
                 filename = os.path.join(out_dir, f'instance_{i + 1}.lp')
-                print(f"  generating file {filename} ...")
                 generate_capacitated_facility_location(n_customers, n_facilities, ratio, filename, rng)
 
     elif args.problem == 'fcmcnf':
@@ -797,9 +795,8 @@ if __name__ == '__main__':
             n_commodities = 45 if instance_type == 'transfer' else 30
             out_dir = instance_dir + f'/{instance_type}_{n_nodes}_{n_commodities}_{ratio}'
             os.makedirs(out_dir); print(f"{num_instances} instances in {out_dir}")
-            for i in range(num_instances):
+            for i in tqdm(range(num_instances)):
                 filename = os.path.join(out_dir, f'instance_{i + 1}.lp')
-                print(f'  generating file {filename} ...')
                 graph = Graph.erdos_renyi(n_nodes, edge_prob, rng)
                 generate_multicommodity_network_flow(graph, n_nodes, n_commodities, ratio, filename, rng)
 
@@ -810,10 +807,9 @@ if __name__ == '__main__':
             n_rows = 500 if instance_type == 'transfer' else 400
             n_cols = 1000 if instance_type == 'transfer' else 750
             out_dir = instance_dir + f'/{instance_type}_{n_rows}_{n_cols}_{density}'
-            os.makedirs(out_dir); print(f"generating {num_instances} instances in {out_dir}")
-            for i in range(num_instances):
-                filename = os.path.join(out_dir, f'instance_{i + 1}.lp')  # tmp filename
-                print(f'  generating file {filename} ...')
+            os.makedirs(out_dir); print(f"{num_instances} instances in {out_dir}")
+            for i in tqdm(range(num_instances)):
+                filename = os.path.join(out_dir, f'instance_{i + 1}.lp')
                 generate_setcover(n_rows, n_cols, density, max_coef, filename, rng)
 
     elif args.problem == 'mknapsack':
@@ -822,9 +818,8 @@ if __name__ == '__main__':
             n_knapsacks = 12 if instance_type == 'transfer' else 6
             out_dir = instance_dir + f'/{instance_type}_{n_items}_{n_knapsacks}'
             os.makedirs(out_dir); print(f"{num_instances} instances in {out_dir}")
-            for i in range(num_instances):
+            for i in tqdm(range(num_instances)):
                 filename = os.path.join(out_dir, f'instance_{i + 1}.lp')
-                print(f"  generating file {filename} ...")
                 weights, values = generate_weights_and_values(n_items, rng, scheme='subset-sum')
                 generate_mknapsack(n_items, n_knapsacks, weights, values, filename, rng)
 
@@ -834,9 +829,8 @@ if __name__ == '__main__':
             n_bids = 1000 if instance_type == 'transfer' else 500
             out_dir = instance_dir + f'/{instance_type}_{n_items}_{n_bids}'
             os.makedirs(out_dir); print(f"{num_instances} instances in {out_dir}")
-            for i in range(num_instances):
+            for i in tqdm(range(num_instances)):
                 filename = os.path.join(out_dir, f'instance_{i + 1}.lp')
-                print(f"  generating file {filename} ...")
                 generate_cauctions(n_items, n_bids, filename, rng)
 
     print("done.")

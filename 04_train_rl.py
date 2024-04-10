@@ -11,8 +11,10 @@ import glob
 import numpy as np
 import argparse
 
+from tqdm import tqdm
 from datetime import datetime
 from scipy.stats.mstats import gmean
+import torch.utils.tensorboard as tb
 from utilities import log
 
 if __name__ == '__main__':
@@ -143,7 +145,7 @@ if __name__ == '__main__':
     # training loop
     start_time = datetime.now()
     best_tree_size = np.inf
-    for epoch in range(config['num_epochs'] + 1):
+    for epoch in tqdm(range(config['num_epochs'] + 1)):
         log(f'** Epoch {epoch}', logfile)
         epoch_data = {}
 

@@ -5,6 +5,7 @@
 # * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * #
 
 import os
+import data
 import json
 import glob
 import time
@@ -16,9 +17,8 @@ import torch_geometric
 
 from utilities import log
 from datetime import datetime
-from torch.utils.tensorboard import SummaryWriter
 from torch.utils.data import DataLoader
-from data import Dataset, GraphDataset
+from torch.utils.tensorboard import SummaryWriter
 
 
 class Scheduler(th.optim.lr_scheduler.ReduceLROnPlateau):
@@ -176,15 +176,15 @@ if __name__ == "__main__":
     if model == "MLP":
         model = ml.MLPPolicy().to(device)
 
-        train_data = Dataset(train_files)
-        valid_data = Dataset(valid_files)
+        train_data = data.Dataset(train_files)
+        valid_data = data.Dataset(valid_files)
         train_loader = DataLoader(train_data, batch_train, shuffle=True)
         valid_loader = DataLoader(valid_data, batch_valid, shuffle=False)
     elif model == "GNN":
         model = ml.GNNPolicy().to(device)
 
-        train_data = GraphDataset(train_files)
-        valid_data = GraphDataset(valid_files)
+        train_data = data.GraphDataset(train_files)
+        valid_data = data.GraphDataset(valid_files)
 
         follow_batch = ['constraint_features_s',
                         'constraint_features_t',
@@ -203,6 +203,7 @@ if __name__ == "__main__":
     epoch_loss = []
     epoch_acc = []
     for epoch in range(max_epochs + 1):
+        log(f'** Epoch {epoch}', logfile)
         start_time = time.time()
 
         # TRAIN

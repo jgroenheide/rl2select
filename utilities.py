@@ -12,11 +12,11 @@ import observation
 
 
 def valid_seed(seed):
-    """Check whether seed is a valid random seed or not."""
+    # Check whether seed is a valid random seed or not.
+    # Valid seeds must be between 0 and 2**31 inclusive.
     seed = int(seed)
     if seed < 0 or seed > 2 ** 31:
-        raise argparse.ArgumentTypeError(
-            "seed must be any integer between 0 and 2**31 inclusive")
+        raise ValueError
     return seed
 
 
@@ -28,17 +28,18 @@ def log(log_message, logfile=None):
             print(out, file=f)
 
 
-def init_scip_model(instance, seed, time_limit, first_solution_only=False):
+def init_scip_model(instance, seed, time_limit):
     # Initialize the SCIP model with the correct settings
     m = scip.Model()
     m.setIntParam('display/verblevel', 0)
     m.readProblem(f'{instance}')
-
-    init_scip_params(m, seed=seed, heuristics=False, presolving=False)
+    init_scip_params(m, seed=seed)
+    # 1: CPU user seconds, 2: wall clock time
     m.setIntParam('timing/clocktype', 2)
-    if first_solution_only:
-        m.setIntParam('limits/solutions', 1)
     m.setRealParam('limits/time', time_limit)
+
+    # if first_solution_only:
+    #     m.setIntParam('limits/solutions', 1)
     return m
 
 
@@ -49,11 +50,8 @@ def init_scip_params(model, seed, heuristics=True, presolving=True, separating=T
     model.setBoolParam('randomization/permutevars', True)
     model.setIntParam('randomization/permutationseed', seed)
     model.setIntParam('randomization/randomseedshift', seed)
-
-    # separation only at root node
+    # disable separation and restarts
     model.setIntParam('separating/maxrounds', 0)
-
-    # no restart
     model.setIntParam('presolving/maxrestarts', 0)
 
     # if asked, disable presolving

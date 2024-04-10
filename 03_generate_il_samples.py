@@ -15,7 +15,7 @@ from nodesels.nodesel_oracle import NodeselOracle
 from utilities import log, init_scip_model
 
 
-def make_samples(in_queue, out_queue, out_dir, time_limit):
+def make_samples(in_queue, out_queue, out_dir):
     """
     Worker loop: fetch an instance, run an episode and record samples.
 
@@ -27,10 +27,7 @@ def make_samples(in_queue, out_queue, out_dir, time_limit):
         Output queue in which to put solutions.
     out_dir : str
         Directory in which to write samples.
-    time_limit : float in [0, 1e+20]
-        Maximum running time for an episode, in seconds.
     """
-    # while not in_queue.empty():
     while True:
         # Fetch an instance...
         episode, instance, seed = in_queue.get()
@@ -45,7 +42,7 @@ def make_samples(in_queue, out_queue, out_dir, time_limit):
             continue
 
         # Initialize SCIP model
-        m = init_scip_model(instance, seed, time_limit)
+        m = init_scip_model(instance, seed, 300)
 
         solutions = []
         for solution_file in solution_files:
@@ -88,7 +85,7 @@ def send_orders(orders_queue, instances, random):
 
     Parameters
     ----------
-    orders_queue : multiprocessing.Queue
+    orders_queue : mp.Queue
         Queue to which to send orders.
     instances : list
         Instance file names from which to sample episodes.
@@ -104,7 +101,7 @@ def send_orders(orders_queue, instances, random):
         episode += 1
 
 
-def collect_samples(instances, out_dir, random, n_jobs, max_samples, time_limit):
+def collect_samples(instances, out_dir, random, n_jobs, max_samples):
     """
     Runs branch-and-bound episodes on the given set of instances, and collects
     randomly (state, action) pairs from the 'vanilla-fullstrong' expert brancher.
@@ -121,8 +118,6 @@ def collect_samples(instances, out_dir, random, n_jobs, max_samples, time_limit)
         Number of jobs for parallel sampling.
     max_samples : int
         Number of samples to collect.
-    time_limit : float in [0, 1e+20]
-        Maximum running time for an episode, in seconds.
     """
     os.makedirs(out_dir, exist_ok=True)
 
@@ -133,7 +128,7 @@ def collect_samples(instances, out_dir, random, n_jobs, max_samples, time_limit)
     for i in range(n_jobs):
         p = mp.Process(
             target=make_samples,
-            args=(orders_queue, answers_queue, out_dir, time_limit),
+            args=(orders_queue, answers_queue, out_dir),
             daemon=True)
         workers.append(p)
         p.start()
@@ -227,10 +222,9 @@ if __name__ == '__main__':
     )
     args = parser.parse_args()
 
-    time_limit = 300
     rng = np.random.default_rng(args.seed)
     difficulty = config['difficulty'][args.problem]
-    for instance_type, num_samples in [('train', 400), ('valid', 150)]:
+    for instance_type, num_samples in [('train', 40000), ('valid', 15000)]:
         instance_dir = f'data/{args.problem}/instances/{instance_type}_{difficulty}'
         sample_dir = f'data/{args.problem}/samples/{instance_type}_{difficulty}'
         os.makedirs(sample_dir)  # create output directory, throws an error if it already exists
@@ -238,4 +232,4 @@ if __name__ == '__main__':
         instances = glob.glob(instance_dir + '/*.lp')
         log(f"{len(instances)} instances for {num_samples} samples")
 
-        collect_samples(instances, sample_dir, rng, args.njobs, num_samples, time_limit)
+        collect_samples(instances, sample_dir, rng, args.njobs, num_samples)
