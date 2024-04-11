@@ -198,12 +198,12 @@ def generate_general_indset(graph, filename, alphaE2, random):
         A random number generator.
     """
     # Generate the set of removable edges
-    E2 = [edge for edge in graph.edges if random.random() <= alphaE2]
+    E2 = [edge for edge in graph.edges if random.random() < alphaE2]
 
     # Create IP, write it to file, and solve it with CPLEX
     with open(filename, 'w') as lp_file:
-        lp_file.write("maximize\nOBJ:" + "".join([f" + 1 x{node}" for node in graph]) +
-                      "".join([f" - y{edge[0]}_{edge[1]}" for edge in E2]) + "\n")
+        lp_file.write("maximize\nOBJ:" + "".join([f" + 10x{node}" for node in graph])
+                      + "".join([f" - y{edge[0]}_{edge[1]}" for edge in E2]) + "\n")
         lp_file.write("\nsubject to\n")
         for count, (node1, node2) in enumerate(graph.edges):
             y = f" - y{node1}_{node2}" if (node1, node2) in E2 else ""
@@ -747,10 +747,15 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     rng = np.random.default_rng(args.seed)
-    instance_config = [('train', 10000),
-                       ('valid', 2000),
-                       ('test', 100),
-                       ('transfer', 100)]
+    instance_config = [('train', 4000),
+                       ('valid', 1000),
+                       ('test', 50),
+                       ('transfer', 50)]
+    # smaller size for debugging purposes
+    # instance_config = [('train', 5),
+    #                    ('valid', 2),
+    #                    ('test', 1),
+    #                    ('transfer', 1)]
 
     instance_dir = f'data/{args.problem}/instances'
     if args.problem == 'indset':

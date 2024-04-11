@@ -28,47 +28,36 @@ def log(log_message, logfile=None):
             print(out, file=f)
 
 
-def init_scip_model(instance, seed, time_limit):
-    # Initialize the SCIP model with the correct settings
-    m = scip.Model()
-    m.setIntParam('display/verblevel', 0)
-    m.readProblem(f'{instance}')
-    init_scip_params(m, seed=seed)
-    # 1: CPU user seconds, 2: wall clock time
-    m.setIntParam('timing/clocktype', 2)
-    m.setRealParam('limits/time', time_limit)
-
-    # if first_solution_only:
-    #     m.setIntParam('limits/solutions', 1)
-    return m
-
-
-def init_scip_params(model, seed, heuristics=True, presolving=True, separating=True, conflict=True):
+def init_scip_params(model, seed, presolving=True, heuristics=True, separating=True, conflict=True):
     seed = seed % 2147483648  # SCIP seed range
 
     # set up randomization
     model.setBoolParam('randomization/permutevars', True)
     model.setIntParam('randomization/permutationseed', seed)
     model.setIntParam('randomization/randomseedshift', seed)
+
     # disable separation and restarts
     model.setIntParam('separating/maxrounds', 0)
     model.setIntParam('presolving/maxrestarts', 0)
 
     # if asked, disable presolving
     if not presolving:
-        model.setIntParam('presolving/maxrounds', 0)
+        model.setPresolve(scip.SCIP_PARAMSETTING.OFF)
+
+    # if asked, disable primal heuristics
+    if not heuristics:
+        model.setHeuristics(scip.SCIP_PARAMSETTING.OFF)
 
     # if asked, disable separating (cuts)
     if not separating:
-        model.setIntParam('separating/maxroundsroot', 0)
+        model.setSeparating(scip.SCIP_PARAMSETTING.OFF)
 
     # if asked, disable conflict analysis (more cuts)
     if not conflict:
         model.setBoolParam('conflict/enable', False)
 
-    # if asked, disable primal heuristics
-    if not heuristics:
-        model.setHeuristics(scip.SCIP_PARAMSETTING.OFF)
+    # if first_solution_only:
+    #     m.setIntParam('limits/solutions', 1)
 
 
 def extract_GNN_state(model, buffer=None):

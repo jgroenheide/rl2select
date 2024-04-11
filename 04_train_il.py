@@ -164,7 +164,7 @@ if __name__ == "__main__":
     log(f"gpu: {args.gpu}", logfile)
     log(f"seed {args.seed}", logfile)
 
-    tensorboard_path = os.path.join(running_dir, f'tensorboard_log')
+    tensorboard_path = os.path.join(running_dir, 'tensorboard_log')
     writer = SummaryWriter(log_dir=tensorboard_path)
 
     # --- POLICY AND DATA --- #

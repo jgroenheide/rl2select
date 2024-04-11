@@ -9,10 +9,11 @@ import json
 import argparse
 import utilities
 import numpy as np
+import pyscipopt as scip
 import multiprocessing as mp
 
 from nodesels.nodesel_oracle import NodeselOracle
-from utilities import log, init_scip_model
+from utilities import log
 
 
 def make_samples(in_queue, out_queue, out_dir):
@@ -42,16 +43,23 @@ def make_samples(in_queue, out_queue, out_dir):
             continue
 
         # Initialize SCIP model
-        m = init_scip_model(instance, seed, 300)
+        m = scip.Model()
+        m.hideOutput()
+        m.readProblem(instance)
+
+        # 1: CPU user seconds, 2: wall clock time
+        m.setIntParam('timing/clocktype', 1)
+        m.setRealParam('limits/time', 300)
+        utilities.init_scip_params(m, seed)
 
         solutions = []
         for solution_file in solution_files:
             solution = m.readSolFile(solution_file)
             solutions.append(solution)
 
-        nodesel_oracle = NodeselOracle(solutions, episode, out_queue, out_dir)
+        oracle = NodeselOracle(solutions, episode, out_queue, out_dir)
 
-        m.includeNodesel(nodesel=nodesel_oracle,
+        m.includeNodesel(nodesel=oracle,
                          name='sampler',
                          desc='Sampler for node selecting, uses RestartDFS on default',
                          stdpriority=999999,
@@ -67,9 +75,9 @@ def make_samples(in_queue, out_queue, out_dir):
         m.optimize()
         m.freeProb()
 
-        label_counts_norm = [f'{100 * x / sum(nodesel_oracle.action_counts):.1f}' for x in nodesel_oracle.action_counts]
-        print(f'(Left, Right, Both): {label_counts_norm}')
-        print(f'{instance_id}, process completed, {nodesel_oracle.sample_counter} samples')
+        action_counts_norm = [f'{100 * x / oracle.sample_count:.1f}' for x in oracle.action_count]
+        print(f'(Left, Right: Both): {action_counts_norm}: {100 * oracle.both_count / oracle.sample_count:.1f}')
+        print(f'{instance_id}: Process completed, {oracle.sample_count} samples')
 
         out_queue.put({
             'type': 'done',
@@ -181,7 +189,7 @@ def collect_samples(instances, out_dir, random, n_jobs, max_samples):
                 # else write sample
                 in_buffer -= 1
                 n_samples += 1
-                # sample['filename'] = f'{out_dir}/tmp/sample_{episode}_{sample_counter}.pkl'
+                # sample['filename'] = f'{out_dir}/tmp/sample_{episode}_{sample_count}.pkl'
                 os.rename(sample['filename'], f'{out_dir}/sample_{n_samples}.pkl')
                 print(f"[m {os.getpid()}] episode {sample['episode']}: "
                       f"{n_samples} / {max_samples} samples written ({in_buffer} in buffer).")
@@ -228,8 +236,9 @@ if __name__ == '__main__':
         instance_dir = f'data/{args.problem}/instances/{instance_type}_{difficulty}'
         sample_dir = f'data/{args.problem}/samples/{instance_type}_{difficulty}'
         os.makedirs(sample_dir)  # create output directory, throws an error if it already exists
+        # logfile = os.path.join(sample_dir, 'sample_log.txt')
 
         instances = glob.glob(instance_dir + '/*.lp')
-        log(f"{len(instances)} instances for {num_samples} samples")
+        log(f"{len(instances)} {instance_type} instances for {num_samples} samples")
 
         collect_samples(instances, sample_dir, rng, args.njobs, num_samples)

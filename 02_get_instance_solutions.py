@@ -10,6 +10,7 @@ import json
 import threading
 import utilities
 import numpy as np
+import pyscipopt as scip
 import multiprocessing as mp
 
 from tqdm import tqdm
@@ -29,8 +30,16 @@ def solve_instance(in_queue, out_queue, k_sols):
     """
     while not in_queue.empty():
         instance, seed = in_queue.get()
+
         # Initialize SCIP model
-        m = utilities.init_scip_model(instance, seed, 300)
+        m = scip.Model()
+        m.hideOutput()
+        m.readProblem(instance)
+
+        # 1: CPU user seconds, 2: wall clock time
+        m.setIntParam('timing/clocktype', 1)
+        m.setRealParam('limits/time', 300)
+        utilities.init_scip_params(m, seed)
 
         # Solve and retrieve solutions
         m.optimize()
@@ -53,7 +62,6 @@ def solve_instance(in_queue, out_queue, k_sols):
         out_queue.put({instance: info})
 
         m.freeProb()
-        m.freeTransform()
 
 
 def collect_solutions(instances, random, n_jobs, k_sols):

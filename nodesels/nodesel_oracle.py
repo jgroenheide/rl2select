@@ -19,8 +19,9 @@ class NodeselOracle(NodeselEstimate):
         # root node is always an oracle node
         self.is_sol_node = {1: 0}
         self.state_buffer = None
-        self.action_counts = [0, 0, 0]
-        self.sample_counter = 0
+        self.sample_count = 0
+        self.action_count = [0, 0]
+        self.both_count = 0
 
     def nodeselect(self):
         depth = self.model.getDepth()
@@ -40,7 +41,8 @@ class NodeselOracle(NodeselEstimate):
             return super().nodeselect()
         _, children, _ = self.model.getOpenNodes()
 
-        sol_ranks = [-1, -1]
+        max_rank = len(self.solutions)
+        sol_ranks = [max_rank, max_rank]
         for child_index, child in enumerate(children):
             branchings = child.getParentBranchings()
             # By partitioning, it is sufficient to only check the new
@@ -59,21 +61,20 @@ class NodeselOracle(NodeselEstimate):
         assert sol_ranks[0] != sol_ranks[1]
 
         # Save 'both' if both children lead to a solution
-        action = int(sol_ranks[0] < sol_ranks[1])
-        both = sol_ranks[0] > -1 and sol_ranks[1] > -1
+        action = int(sol_ranks[1] < sol_ranks[0])
+        both = sol_ranks[0] < max_rank and sol_ranks[1] < max_rank
 
         b, n1, n2, g = utilities.extract_MLP_state(self.model, *children)
         mlp_state0 = [b, n1, g]
         mlp_state1 = [b, n2, g]
 
-        action_index = 2 if both else action
-        self.action_counts[action_index] += 1
-        label = ['left', 'right', 'both'][action_index]
-        parent_number = node.getParent().getNumber() if depth > 0 else 'ROOT'
-        print(f'Node: {node_number} | Parent: {parent_number} | Depth: {depth} | Action: {label}')
+        self.action_count[action] += 1
+        self.both_count += both
+        # parent_number = node.getParent().getNumber() if depth > 0 else 'ROOT' -> | Parent: {parent_number}
+        print(f"Node: {node_number} | Depth: {depth} | Action: {['left', 'right'][action]} | Both: {both}")
 
         os.makedirs(f'{self.out_dir}/tmp', exist_ok=True)
-        filename = f'{self.out_dir}/tmp/sample_{self.episode}_{self.sample_counter}.pkl'
+        filename = f'{self.out_dir}/tmp/sample_{self.episode}_{self.sample_count}.pkl'
 
         with gzip.open(filename, 'wb') as f:
             f.write(pickle.dumps({
@@ -89,6 +90,6 @@ class NodeselOracle(NodeselEstimate):
             'filename': filename,
         })
 
-        self.sample_counter += 1
+        self.sample_count += 1
 
         return super().nodeselect()
