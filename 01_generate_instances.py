@@ -203,12 +203,13 @@ def generate_general_indset(graph, filename, alphaE2, random):
     # Create IP, write it to file, and solve it with CPLEX
     with open(filename, 'w') as lp_file:
         lp_file.write("maximize\nOBJ:" + " + ".join([f"10x{node}" for node in graph])
-                      + " - ".join([f"y{edge[0]}_{edge[1]}" for edge in E2]))
+                      + " - ".join([f"y{node1}_{node2}" for node1, node2 in E2]))
         lp_file.write("\n\nsubject to\n")
         for count, (node1, node2) in enumerate(graph.edges):
             y = f" - y{node1}_{node2}" if (node1, node2) in E2 else ""
             lp_file.write(f"C{count + 1}: x{node1} + x{node2}" + y + " <= 1\n")
         lp_file.write("\nbinary\n" + " ".join([f"x{node}" for node in graph]))
+        lp_file.write("".join([f" y{node1}_{node2}" for node1, node2 in E2]))
 
 def generate_capacitated_facility_location(n_customers, n_facilities, ratio, filename, random):
     """

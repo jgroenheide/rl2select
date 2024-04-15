@@ -88,6 +88,7 @@ class NodeselOracle(NodeselEstimate):
             'type': 'sample',
             'episode': self.episode,
             'filename': filename,
+            'action': action,
         })
 
         self.sample_count += 1

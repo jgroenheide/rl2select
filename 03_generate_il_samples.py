@@ -154,6 +154,7 @@ def collect_samples(instances, out_dir, random, n_jobs, max_samples):
     episode_i = 0
     n_samples = 0
     in_buffer = 0
+    action_count = [0, 0]
     while n_samples < max_samples:
         sample = answers_queue.get()
 
@@ -189,6 +190,7 @@ def collect_samples(instances, out_dir, random, n_jobs, max_samples):
                 # else write sample
                 in_buffer -= 1
                 n_samples += 1
+                action_count[sample['action']] += 1
                 # sample['filename'] = f'{out_dir}/tmp/sample_{episode}_{sample_count}.pkl'
                 os.rename(sample['filename'], f'{out_dir}/sample_{n_samples}.pkl')
                 print(f"[m {os.getpid()}] episode {sample['episode']}: "
@@ -203,6 +205,11 @@ def collect_samples(instances, out_dir, random, n_jobs, max_samples):
     # stop all workers (hard)
     for p in workers:
         p.terminate()
+
+    class_dist = [f'{100 * x / max_samples:.1f}' for x in action_count]
+    print(f"Sampling completed: (Left, Right): {class_dist}")
+    with open(out_dir + "/class_dist.json", "w") as f:
+        json.dump([x / max_samples for x in action_count], f)
 
 
 if __name__ == '__main__':

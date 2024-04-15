@@ -58,9 +58,10 @@ def process(policy, data_loader, optimizer=None):
             # batch = batch.to(device)
             target = action.unsqueeze(dim=-1).float().to(device)
             output = policy(state[0].to(device), state[1].to(device))
+            weight = th.where(action < 0.5, *norm_values).unsqueeze(dim=-1)
 
             # Loss calculation for binary output
-            loss = th.nn.BCELoss()(output, target)
+            loss = th.nn.BCELoss(weight)(output, target)
             y_pred = th.round(output)
 
             # Loss calculation for 3+ output heads
@@ -106,20 +107,14 @@ if __name__ == "__main__":
         type=int,
         default=-1,
     )
-    parser.add_argument(
-        '-k', '--ksols',
-        help='Number of solutions to process',
-        type=int,
-        default=10,
-    )
     args = parser.parse_args()
 
     # --- HYPER PARAMETERS --- #
     model = "MLP"
-    max_epochs = 1000
+    max_epochs = 10000
     batch_train = 32
     batch_valid = 128
-    lr = 5e-3
+    lr = 0.01  # 5e-3
     entropy_bonus = 0.0
 
     difficulty = config['difficulty'][args.problem]
@@ -133,36 +128,25 @@ if __name__ == "__main__":
         os.environ['CUDA_VISIBLE_DEVICES'] = f'{args.gpu}'
         device = f"cuda:0"
 
-    # --- LOG --- #
-
-    # Create timestamp to save weights
-    current_date = datetime.now().strftime('%Y-%m-%d')
-    current_time = datetime.now().strftime('%H.%M.%S')
-    timestamp = f"{current_date}--{current_time}"
-    running_dir = f'experiments/{args.problem}_{difficulty}/{args.seed}_{timestamp}'
-    os.makedirs(running_dir, exist_ok=True)
-    logfile = os.path.join(running_dir, 'il_train_log.txt')
-
-    log(f"max_epochs: {max_epochs}", logfile)
-    log(f"batch_size: {batch_train}", logfile)
-    log(f"valid_batch_size : {batch_valid}", logfile)
-    log(f"learning rate: {lr}", logfile)
-    log(f"entropy bonus: {entropy_bonus}", logfile)
-    log(f"problem: {args.problem}", logfile)
-    log(f"gpu: {args.gpu}", logfile)
-    log(f"seed {args.seed}", logfile)
-
-    tensorboard_path = os.path.join(running_dir, 'tensorboard_log')
-    writer = SummaryWriter(log_dir=tensorboard_path)
-
     # --- POLICY AND DATA --- #
-    sample_dir = f'data/{args.problem}/samples/train_{difficulty}'
-    train_files = [str(file) for file in glob.glob(sample_dir + '/sample_*.pkl')]
     sample_dir = f'data/{args.problem}/samples/valid_{difficulty}'
     valid_files = [str(file) for file in glob.glob(sample_dir + '/sample_*.pkl')]
+    sample_dir = f'data/{args.problem}/samples/train_{difficulty}'
+    train_files = [str(file) for file in glob.glob(sample_dir + '/sample_*.pkl')]
 
-    log(f"train_files: {len(train_files)}")
-    log(f"valid_files: {len(valid_files)}")
+    file_path = f"{sample_dir}/class_dist.json"
+    if os.path.exists(file_path):
+        # collect the pre-computed class distribution of the samples
+        with open(file_path, "r") as f:
+            class_dist = json.load(f)
+    else: class_dist = [0.85, 0.15]
+    # norm_values = [1 / x for x in class_dist]
+    norm_values = [max(class_dist[1] / class_dist[0], 1),
+                   max(class_dist[0] / class_dist[1], 1)]
+
+    # minority = int(class_dist[1] < class_dist[0])
+    # norm_values = [1, 1]
+    # norm_values[minority] = class_dist[1 - minority] / class_dist[minority]
 
     if model == "MLP":
         model = ml.MLPPolicy().to(device)
@@ -188,24 +172,49 @@ if __name__ == "__main__":
         raise NotImplementedError
 
     optimizer = th.optim.Adam(model.parameters(), lr=lr)
-    scheduler = Scheduler(optimizer, factor=0.2, patience=50)
+    scheduler = Scheduler(optimizer, factor=0.2, patience=2500)
+
+    # --- LOG --- #
+
+    # Create timestamp to save weights
+    current_date = datetime.now().strftime('%Y-%m-%d')
+    current_time = datetime.now().strftime('%H.%M.%S')
+    timestamp = f"{current_date}--{current_time}"
+    running_dir = f'experiments/{args.problem}_{difficulty}/{args.seed}_{timestamp}'
+    os.makedirs(running_dir, exist_ok=True)
+    logfile = os.path.join(running_dir, 'il_train_log.txt')
+
+    log(f"max_epochs: {max_epochs}", logfile)
+    log(f"batch_size: {batch_train}", logfile)
+    log(f"valid_batch_size : {batch_valid}", logfile)
+    log(f"learning rate: {lr}", logfile)
+    log(f"entropy bonus: {entropy_bonus}", logfile)
+    log(f"problem: {args.problem}", logfile)
+    log(f"gpu: {args.gpu}", logfile)
+    log(f"seed {args.seed}", logfile)
+    log(f"train_files: {len(train_files)}", logfile)
+    log(f"valid_files: {len(valid_files)}", logfile)
+
+    tensorboard_path = os.path.join(running_dir, 'tensorboard_log')
+    writer = SummaryWriter(log_dir=tensorboard_path)
 
     total_elapsed_time = 0
     epoch_loss = []
     epoch_acc = []
+    best_epoch = 0
     for epoch in range(max_epochs + 1):
         log(f'** Epoch {epoch}', logfile)
         start_time = time.time()
 
         # TRAIN
         train_loss, train_acc = process(model, train_loader, optimizer)
-        log(f'Epoch {epoch} | train loss: {train_loss:.3f}, accuracy: {train_acc:.3f}', logfile)
+        log(f'Epoch {epoch} | train loss: {train_loss:.3f} | accuracy: {train_acc:.3f}', logfile)
         writer.add_scalar(f'{args.seed}/Loss/train', train_loss, epoch)
         writer.add_scalar(f'{args.seed}/Accuracy/train', train_acc, epoch)
 
         # TEST
         valid_loss, valid_acc = process(model, valid_loader)
-        log(f'Epoch {epoch} | valid loss: {valid_loss:.3f}, accuracy: {valid_acc:.3f}', logfile)
+        log(f'Epoch {epoch} | valid loss: {valid_loss:.3f} | accuracy: {valid_acc:.3f}', logfile)
         writer.add_scalar(f'{args.seed}/Loss/valid', valid_loss, epoch)
         writer.add_scalar(f'{args.seed}/Accuracy/valid', valid_acc, epoch)
 
@@ -214,20 +223,22 @@ if __name__ == "__main__":
 
         elapsed_time = time.time() - start_time
         total_elapsed_time += elapsed_time
-        log(f"Epoch {epoch} | elapsed time: {elapsed_time:.3f} s | total: {total_elapsed_time:.3f} s", logfile)
+        log(f"Epoch {epoch} | elapsed time: {elapsed_time:.3f}s | total: {total_elapsed_time:.3f}s", logfile)
 
         scheduler.step(valid_loss)
         if scheduler.step_result == 0:  # NEW_BEST
             log(f"Epoch {epoch} | found best model so far, valid_loss: {valid_loss:.3f}, acc: {valid_acc:.3f}", logfile)
             th.save(model.state_dict(), f'{running_dir}/best_params_il.pkl')
+            best_epoch = epoch
         elif scheduler.step_result == 1:  # NO_PATIENCE
             log(f'Epoch {epoch} | {scheduler.patience} epochs without improvement, lowering learning rate', logfile)
         elif scheduler.step_result == 2:  # ABORT
             log(f'Epoch {epoch} | no improvements for {2 * scheduler.patience} epochs, early stopping', logfile)
-            break
+            # break
 
     writer.close()
 
     model.load_state_dict(th.load(f'{running_dir}/best_params_il.pkl'))
     valid_loss, valid_acc = process(model, valid_loader)
+    log(f"PROCESS COMPLETED: BEST MODEL FOUND IN EPOCH {best_epoch}")
     log(f"BEST VALID LOSS: {valid_loss:0.3f} | BEST VALID ACCURACY: {valid_acc:0.3f}", logfile)

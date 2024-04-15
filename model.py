@@ -8,9 +8,9 @@ class MLPPolicy(torch.nn.Module):
     def __init__(self):
         super().__init__()
         in_features = 17
-        self.model = torch.nn.Sequential(torch.nn.Linear(in_features, 50),
+        self.model = torch.nn.Sequential(torch.nn.Linear(in_features, 32),
                                          torch.nn.LeakyReLU(),
-                                         torch.nn.Linear(50, 1))
+                                         torch.nn.Linear(32, 1))
 
     def forward(self, n0, n1):
         s0, s1 = self.model(n0), self.model(n1)
@@ -21,7 +21,7 @@ class GNNPolicy(torch.nn.Module):
     def __init__(self):
         super().__init__()
 
-        self.emb_size = emb_size = 32  # uniform node feature embedding dim
+        emb_size = 32  # uniform node feature embedding dim
 
         hidden_dim1 = 8
         hidden_dim2 = 4
