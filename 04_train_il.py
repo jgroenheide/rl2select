@@ -56,8 +56,8 @@ def process(policy, data_loader, optimizer=None):
     with th.set_grad_enabled(training):
         for state, action in data_loader:
             # batch = batch.to(device)
-            target = th.unsqueeze(action, -1).float()
-            output = policy(*state)
+            target = action.unsqueeze(dim=-1).float().to(device)
+            output = policy(state[0].to(device), state[1].to(device))
 
             # Loss calculation for binary output
             loss = th.nn.BCELoss()(output, target)
@@ -67,14 +67,14 @@ def process(policy, data_loader, optimizer=None):
             # loss = th.nn.CrossEntropyLoss()(output, target.long())
             # y_pred = th.argmax(output, dim=1)
 
-            avg_loss += loss.item() * action.shape[0]
-            avg_acc += th.sum(th.eq(y_pred, target)).item()
-            num_samples += action.shape[0]
-
             if training:
                 optimizer.zero_grad()
                 loss.backward()  # Does backpropagation and calculates gradients
                 optimizer.step()  # Updates the weights accordingly
+
+            avg_loss += loss.item() * action.shape[0]
+            avg_acc += th.sum(th.eq(y_pred, target)).item()
+            num_samples += action.shape[0]
 
     avg_loss /= max(num_samples, 1)
     avg_acc /= max(num_samples, 1)
@@ -107,31 +107,19 @@ if __name__ == "__main__":
         default=-1,
     )
     parser.add_argument(
-        '-k',
+        '-k', '--ksols',
         help='Number of solutions to process',
         type=int,
         default=10,
     )
-    # # add all config parameters as optional command-line arguments
-    # for param, value in config.items():
-    #     if param not in ['seed', 'gpu', 'k']:
-    #         parser.add_argument(
-    #             f'--{param}',
-    #             type=type(value),
-    #             default=argparse.SUPPRESS,
-    #         )
     args = parser.parse_args()
-
-    # override config with command-line arguments if provided
-    args_config = {key: getattr(args, key) for key in config.keys() & vars(args).keys()}
-    config.update(args_config)
 
     # --- HYPER PARAMETERS --- #
     model = "MLP"
     max_epochs = 1000
     batch_train = 32
     batch_valid = 128
-    lr = 1e-3
+    lr = 5e-3
     entropy_bonus = 0.0
 
     difficulty = config['difficulty'][args.problem]
@@ -172,6 +160,9 @@ if __name__ == "__main__":
     train_files = [str(file) for file in glob.glob(sample_dir + '/sample_*.pkl')]
     sample_dir = f'data/{args.problem}/samples/valid_{difficulty}'
     valid_files = [str(file) for file in glob.glob(sample_dir + '/sample_*.pkl')]
+
+    log(f"train_files: {len(train_files)}")
+    log(f"valid_files: {len(valid_files)}")
 
     if model == "MLP":
         model = ml.MLPPolicy().to(device)

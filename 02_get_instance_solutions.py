@@ -13,7 +13,7 @@ import numpy as np
 import pyscipopt as scip
 import multiprocessing as mp
 
-from tqdm import tqdm
+from tqdm import trange
 
 
 def solve_instance(in_queue, out_queue, k_sols):
@@ -96,7 +96,7 @@ def collect_solutions(instances, random, n_jobs, k_sols):
         p.start()
 
     solutions = {}
-    for _ in tqdm(range(len(instances))):
+    for _ in trange(len(instances)):
         answer = out_queue.get()
         solutions.update(answer)
 

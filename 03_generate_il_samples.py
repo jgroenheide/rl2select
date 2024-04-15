@@ -1,6 +1,6 @@
 # * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * #
 # Generates training samples for imitation learning                             #
-# Usage: python 03_generate_il_samples.py <type> -s <seed> -j <njobs>           #
+# Usage: python 03_generate_il_samples.py <problem> <type> -s <seed> -j <njobs> #
 # * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * #
 
 import os
@@ -60,8 +60,8 @@ def make_samples(in_queue, out_queue, out_dir):
         oracle = NodeselOracle(solutions, episode, out_queue, out_dir)
 
         m.includeNodesel(nodesel=oracle,
-                         name='sampler',
-                         desc='Sampler for node selecting, uses RestartDFS on default',
+                         name='nodesel_oracle',
+                         desc='BestEstimate node selector that saves samples based on a diving oracle',
                          stdpriority=999999,
                          memsavepriority=999999)
 
@@ -217,6 +217,11 @@ if __name__ == '__main__':
         choices=config['problems'],
     )
     parser.add_argument(
+        'instance_type',
+        help='Type of instances to sample',
+        choices=['train', 'valid'],
+    )
+    parser.add_argument(
         '-s', '--seed',
         help='Random generator seed.',
         type=utilities.valid_seed,
@@ -228,17 +233,24 @@ if __name__ == '__main__':
         type=int,
         default=1
     )
+    parser.add_argument(
+        '-r', '--ratio',
+        help='Samples per instance ratio',
+        type=int,
+        default=10
+    )
+
     args = parser.parse_args()
 
-    rng = np.random.default_rng(args.seed)
     difficulty = config['difficulty'][args.problem]
-    for instance_type, num_samples in [('train', 40000), ('valid', 15000)]:
-        instance_dir = f'data/{args.problem}/instances/{instance_type}_{difficulty}'
-        sample_dir = f'data/{args.problem}/samples/{instance_type}_{difficulty}'
-        os.makedirs(sample_dir)  # create output directory, throws an error if it already exists
-        # logfile = os.path.join(sample_dir, 'sample_log.txt')
+    instance_dir = f'data/{args.problem}/instances/{args.instance_type}_{difficulty}'
+    sample_dir = f'data/{args.problem}/samples/{args.instance_type}_{difficulty}'
+    os.makedirs(sample_dir)  # create output directory, throws an error if it already exists
+    # logfile = os.path.join(sample_dir, 'sample_log.txt')
 
-        instances = glob.glob(instance_dir + '/*.lp')
-        log(f"{len(instances)} {instance_type} instances for {num_samples} samples")
+    instances = glob.glob(instance_dir + '/*.lp')
+    num_samples = args.ratio * len(instances)
+    log(f"{len(instances)} {args.instance_type} instances for {num_samples} samples")
 
-        collect_samples(instances, sample_dir, rng, args.njobs, num_samples)
+    rng = np.random.default_rng(args.seed)
+    collect_samples(instances, sample_dir, rng, args.njobs, num_samples)

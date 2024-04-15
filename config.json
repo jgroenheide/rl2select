@@ -1,5 +1,5 @@
 {
-  "lr": 1e-6,
+  "lr": 5e-3,
 
   "entropy_bonus": 1e-5,
 
@@ -20,11 +20,12 @@
   "k": 10,
 
   "problems": ["indset", "gisp", "cflp", "fcmcnf", "setcover", "mknapsack", "cauctions"],
+  "num_instances": [["train", 4000], ["valid", 1000], ["test", 50], ["transfer", 50]],
   "difficulty": {
     "indset": "500_4",
     "gisp": "60_0.5",
     "cflp": "35_35_5",
-    "fcmcnf": "25_30_100",
+    "fcmcnf": "15_22_0.33",
     "setcover": "400_750_0.05",
     "mknapsack": "100_6",
     "cauctions": "100_500"

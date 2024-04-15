@@ -12,7 +12,7 @@ import utilities
 import numpy as np
 import scipy as sp
 import networkx as nx
-from tqdm import tqdm
+from tqdm import trange
 from itertools import combinations
 
 
@@ -175,7 +175,7 @@ def generate_indset(graph, filename):
             inequalities.add((node,))
 
     with open(filename, 'w') as lp_file:
-        lp_file.write("maximize\nOBJ:" + "".join([f" + 1 x{node + 1}" for node in graph]) + "\n")
+        lp_file.write("maximize\nOBJ: " + " + ".join([f"x{node + 1}" for node in graph]) + "\n")
         lp_file.write("\nsubject to\n")
         for count, group in enumerate(inequalities):
             lp_file.write(f"C{count + 1}:" + "".join([f" + x{node + 1}" for node in sorted(group)]) + " <= 1\n")
@@ -202,13 +202,13 @@ def generate_general_indset(graph, filename, alphaE2, random):
 
     # Create IP, write it to file, and solve it with CPLEX
     with open(filename, 'w') as lp_file:
-        lp_file.write("maximize\nOBJ:" + "".join([f" + 10x{node}" for node in graph])
-                      + "".join([f" - y{edge[0]}_{edge[1]}" for edge in E2]) + "\n")
-        lp_file.write("\nsubject to\n")
+        lp_file.write("maximize\nOBJ:" + " + ".join([f"10x{node}" for node in graph])
+                      + " - ".join([f"y{edge[0]}_{edge[1]}" for edge in E2]))
+        lp_file.write("\n\nsubject to\n")
         for count, (node1, node2) in enumerate(graph.edges):
             y = f" - y{node1}_{node2}" if (node1, node2) in E2 else ""
             lp_file.write(f"C{count + 1}: x{node1} + x{node2}" + y + " <= 1\n")
-        lp_file.write("\nbinary\n" + " ".join([f"x{node}" for node in graph]) + "\n")
+        lp_file.write("\nbinary\n" + " ".join([f"x{node}" for node in graph]))
 
 def generate_capacitated_facility_location(n_customers, n_facilities, ratio, filename, random):
     """
@@ -264,21 +264,21 @@ def generate_capacitated_facility_location(n_customers, n_facilities, ratio, fil
         for i in range(n_customers):
             file.write(f"demand_{i + 1}:" + "".join([f" -1 x_{i + 1}_{j + 1}" for j in range(n_facilities)]) + f" <= -1\n")
         for j in range(n_facilities):
-            file.write(f"capacity_{j + 1}:" + "".join(
-                [f" + {demands[i]}x_{i + 1}_{j + 1}" for i in range(n_customers)]) + f" - {capacities[j]} y_{j + 1} <= 0\n")
+            file.write(f"capacity_{j + 1}:" + "".join([f" + {demands[i]}x_{i + 1}_{j + 1}" for i in range(n_customers)]) +
+                       f" - {capacities[j]} y_{j + 1} <= 0\n")
 
         # optional constraints for LP relaxation tightening
         file.write("total_capacity:" + "".join(
             [f" -{capacities[j]} y_{j + 1}" for j in range(n_facilities)]) + f" <= -{total_demand}\n")
         for i in range(n_customers):
             for j in range(n_facilities):
-                file.write(f"affectation_{i + 1}_{j + 1}: +1 x_{i + 1}_{j + 1} -1 y_{j + 1} <= 0")
+                file.write(f"affectation_{i + 1}_{j + 1}: +1 x_{i + 1}_{j + 1} -1 y_{j + 1} <= 0\n")
 
         file.write("\nbinary\n")
-        file.write("".join([f" y_{j + 1}" for j in range(n_facilities)]))
-        file.write("".join([f" x_{i + 1}_{j + 1}" for i in range(n_customers) for j in range(n_facilities)]))
+        file.write(" ".join([f"y_{j + 1}" for j in range(n_facilities)]))
+        file.write(" ".join([f"x_{i + 1}_{j + 1}" for i in range(n_customers) for j in range(n_facilities)]))
 
-def generate_multicommodity_network_flow(graph, n_nodes, n_commodities, ratio, filename, random):
+def generate_multicommodity_network_flow(graph, n_nodes, n_commodities, filename, random):
     """
     Generate a Loose Fixed-Charge Multi-Commodity Network Flow problem following
 
@@ -292,8 +292,6 @@ def generate_multicommodity_network_flow(graph, n_nodes, n_commodities, ratio, f
         The desired number of nodes in the graph.
     n_commodities: int
         The desired number of commodities.
-    ratio: float
-        The desired capacity / demand ratio.
     filename : str
         Path to the file to save.
     random : np.random.Generator
@@ -304,14 +302,12 @@ def generate_multicommodity_network_flow(graph, n_nodes, n_commodities, ratio, f
     incomings = dict([(j, []) for j in range(n_nodes)])
     outgoings = dict([(i, []) for i in range(n_nodes)])
 
-    edge_list = []
     for i, j in graph.edges:
         c_ij = int(random.uniform(12, 50))  # variable_cost
-        f_ij = int(random.uniform(12 * ratio, 50 * ratio))  # fixed_cost
+        f_ij = int(random.uniform(100, 250))  # fixed_cost
         u_ij = int(random.uniform(1, n_commodities + 1) * random.uniform(10, 100))  # capacity
 
         adj_mat[i][j] = (c_ij, f_ij, u_ij)
-        edge_list.append((i, j))
         outgoings[i].append(j)
         incomings[j].append(i)
 
@@ -324,30 +320,31 @@ def generate_multicommodity_network_flow(graph, n_nodes, n_commodities, ratio, f
             if o_k != d_k and nx.has_path(graph, o_k, d_k):
                 commodities.append((o_k, d_k)); break
 
-    demands = random.integers(*d_range, size=n_commodities)
+    demands = random.integers(10, 100, size=n_commodities)
 
     with open(filename, 'w') as file:
         file.write("minimize\nOBJ:")
         # demand_k * variable_cost * fraction of demand over edge (i, j) for commodity k
-        file.write("".join([f" + {demands[k] * adj_mat[i][j][0]}x_{i + 1}_{j + 1}_{k + 1}"
-                            for (i, j) in edge_list for k in range(n_commodities)]))
+        file.write(" + ".join([f"{demands[k] * adj_mat[i][j][0]}x_{i + 1}_{j + 1}_{k + 1}"
+                               for i, j in graph.edges for k in range(n_commodities)]))
         # fixed_cost * whether edge (i, j) is active
-        file.write("".join([f" + {adj_mat[i][j][1]}y_{i + 1}_{j + 1}" for (i, j) in edge_list]))
+        file.write(" + ".join([f"{adj_mat[i][j][1]}y_{i + 1}_{j + 1}" for i, j in graph.edges]))
 
         file.write("\nsubject to\n")
         for i in range(n_nodes):
             for k in range(n_commodities):
                 # 1 if source, -1 if sink, 0 if else
                 file.write(f"flow_{i + 1}_{k + 1}:" +
-                           "".join([f" + x_{i + 1}_{j + 1}_{k + 1}" for j in outgoings[i]]) +
-                           "".join([f" - x_{j + 1}_{i + 1}_{k + 1}" for j in incomings[i]]) +
-                           f" = {(commodities[k][0] == i) - (commodities[k][1] == i)}\n")
+                           " + ".join([f"x_{i + 1}_{j + 1}_{k + 1}" for j in outgoings[i]]) +
+                           " - ".join([f"x_{j + 1}_{i + 1}_{k + 1}" for j in incomings[i]]) +
+                           f" = {int(commodities[k][0] == i) - int(commodities[k][1] == i)}\n")
 
-        for (i, j) in edge_list:
+        for i, j in graph.edges:
             file.write(f"arc_{i + 1}_{j + 1}:" +
-                       "".join([f" + {demands[k]}x_{i + 1}_{j + 1}_{k + 1}" for k in range(n_commodities)]) +
-                       f" - {adj_mat[i][j][2]}y_{i + 1}_{j + 1} <= +0\n")
-        file.write("\nbinary\n" + " ".join([f"y_{i + 1}_{j + 1}" for (i, j) in edge_list]) + "\n")
+                       " + ".join([f"{demands[k]}x_{i + 1}_{j + 1}_{k + 1}" for k in range(n_commodities)]) +
+                       f" - {adj_mat[i][j][2]}y_{i + 1}_{j + 1} <= 0\n")
+
+        file.write("\nbinary\n" + " ".join([f"y_{i + 1}_{j + 1}" for i, j in graph.edges]))
 
 def generate_setcover(n_rows, n_cols, density, max_coef, filename, random):
     """
@@ -414,16 +411,15 @@ def generate_setcover(n_rows, n_cols, density, max_coef, filename, random):
 
     # write problem
     with open(filename, 'w') as file:
-        file.write("minimize\nOBJ:")
-        file.write("".join([f" +{c[j]} x{j + 1}" for j in range(n_cols)]))
+        file.write("minimize\nOBJ: ")
+        file.write(" + ".join([f"{c[j]}x{j + 1}" for j in range(n_cols)]))
 
         file.write("\n\nsubject to\n")
         for i in range(n_rows):
-            row_cols_str = "".join([f" +1 x{j + 1}" for j in indices[indptr[i]:indptr[i + 1]]])
-            file.write(f"C{i}:" + row_cols_str + f" >= 1\n")
+            slice = indices[indptr[i]:indptr[i + 1]]
+            file.write(f"C{i}: " + " + ".join([f"x{j + 1}" for j in slice]) + f" >= 1\n")
 
-        file.write("\nbinary\n")
-        file.write("".join([f" x{j + 1}" for j in range(n_cols)]))
+        file.write("\nbinary\n" + " ".join([f"x{j + 1}" for j in range(n_cols)]))
 
 # -------------------- KNAPSACK GENERATORS ----------------------
 def generate_weights_and_values(n_items, random, min_range=10, max_range=20, scheme='weakly correlated'):
@@ -747,24 +743,20 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     rng = np.random.default_rng(args.seed)
-    instance_config = [('train', 4000),
-                       ('valid', 1000),
-                       ('test', 50),
-                       ('transfer', 50)]
     # smaller size for debugging purposes
-    # instance_config = [('train', 5),
-    #                    ('valid', 2),
-    #                    ('test', 1),
-    #                    ('transfer', 1)]
+    # config['num_instances'] = [('train', 5),
+    #                            ('valid', 2),
+    #                            ('test', 1),
+    #                            ('transfer', 1)]
 
     instance_dir = f'data/{args.problem}/instances'
     if args.problem == 'indset':
         affinity = 4
-        for instance_type, num_instances in instance_config:
+        for instance_type, num_instances in config['num_instances']:
             n_nodes = 1000 if instance_type == 'transfer' else 500
             out_dir = instance_dir + f'/{instance_type}_{n_nodes}_{affinity}'
             os.makedirs(out_dir); print(f"{num_instances} instances in {out_dir}")
-            for i in tqdm(range(num_instances)):
+            for i in trange(num_instances):
                 filename = os.path.join(out_dir, f'instance_{i + 1}.lp')
                 graph = Graph.barabasi_albert(n_nodes, affinity, rng)
                 generate_indset(graph, filename)
@@ -772,11 +764,11 @@ if __name__ == '__main__':
     elif args.problem == 'gisp':
         edge_prob = 0.6
         drop_rate = 0.5
-        for instance_type, num_instances in instance_config:
+        for instance_type, num_instances in config['num_instances']:
             n_nodes = 80 if instance_type == 'transfer' else 60
             out_dir = instance_dir + f'/{instance_type}_{n_nodes}_{drop_rate}'
             os.makedirs(out_dir); print(f"{num_instances} instances in {out_dir}")
-            for i in tqdm(range(num_instances)):
+            for i in trange(num_instances):
                 filename = os.path.join(out_dir, f'instance_{i + 1}.lp')
                 graph = Graph.erdos_renyi(n_nodes, edge_prob, rng)
                 generate_general_indset(graph, filename, drop_rate, rng)
@@ -784,57 +776,57 @@ if __name__ == '__main__':
     elif args.problem == 'cflp':
         n_facilities = 35
         ratio = 5
-        for instance_type, num_instances in instance_config:
+        for instance_type, num_instances in config['num_instances']:
             n_customers = 60 if instance_type == 'transfer' else 35
             out_dir = instance_dir + f'/{instance_type}_{n_customers}_{n_facilities}_{ratio}'
             os.makedirs(out_dir); print(f"{num_instances} instances in {out_dir}")
-            for i in tqdm(range(num_instances)):
+            for i in trange(num_instances):
                 filename = os.path.join(out_dir, f'instance_{i + 1}.lp')
                 generate_capacitated_facility_location(n_customers, n_facilities, ratio, filename, rng)
 
     elif args.problem == 'fcmcnf':
-        ratio = 100
         edge_prob = 0.33
-        for instance_type, num_instances in instance_config:
-            n_nodes = 30 if instance_type == 'transfer' else 25
-            n_commodities = 45 if instance_type == 'transfer' else 30
-            out_dir = instance_dir + f'/{instance_type}_{n_nodes}_{n_commodities}_{ratio}'
+        for instance_type, num_instances in config['num_instances']:
+            n_nodes = 20 if instance_type == 'transfer' else 15
+            n_commodities = 30 if instance_type == 'transfer' else 22
+            out_dir = instance_dir + f'/{instance_type}_{n_nodes}_{n_commodities}_{edge_prob}'
             os.makedirs(out_dir); print(f"{num_instances} instances in {out_dir}")
-            for i in tqdm(range(num_instances)):
+            for i in trange(num_instances):
                 filename = os.path.join(out_dir, f'instance_{i + 1}.lp')
-                graph = Graph.erdos_renyi(n_nodes, edge_prob, rng)
-                generate_multicommodity_network_flow(graph, n_nodes, n_commodities, ratio, filename, rng)
+                # graph = Graph.erdos_renyi(n_nodes, edge_prob, rng)
+                graph = nx.erdos_renyi_graph(n_nodes, edge_prob, seed=args.seed, directed=True)
+                generate_multicommodity_network_flow(graph, n_nodes, n_commodities, filename, rng)
 
     elif args.problem == 'setcover':
         density = 0.05
         max_coef = 100
-        for instance_type, num_instances in instance_config:
+        for instance_type, num_instances in config['num_instances']:
             n_rows = 500 if instance_type == 'transfer' else 400
             n_cols = 1000 if instance_type == 'transfer' else 750
             out_dir = instance_dir + f'/{instance_type}_{n_rows}_{n_cols}_{density}'
             os.makedirs(out_dir); print(f"{num_instances} instances in {out_dir}")
-            for i in tqdm(range(num_instances)):
+            for i in trange(num_instances):
                 filename = os.path.join(out_dir, f'instance_{i + 1}.lp')
                 generate_setcover(n_rows, n_cols, density, max_coef, filename, rng)
 
     elif args.problem == 'mknapsack':
         n_items = 100
-        for instance_type, num_instances in instance_config:
+        for instance_type, num_instances in config['num_instances']:
             n_knapsacks = 12 if instance_type == 'transfer' else 6
             out_dir = instance_dir + f'/{instance_type}_{n_items}_{n_knapsacks}'
             os.makedirs(out_dir); print(f"{num_instances} instances in {out_dir}")
-            for i in tqdm(range(num_instances)):
+            for i in trange(num_instances):
                 filename = os.path.join(out_dir, f'instance_{i + 1}.lp')
                 weights, values = generate_weights_and_values(n_items, rng, scheme='subset-sum')
                 generate_mknapsack(n_items, n_knapsacks, weights, values, filename, rng)
 
     elif args.problem == 'cauctions':
-        for instance_type, num_instances in instance_config:
+        for instance_type, num_instances in config['num_instances']:
             n_items = 200 if instance_type == 'transfer' else 100
             n_bids = 1000 if instance_type == 'transfer' else 500
             out_dir = instance_dir + f'/{instance_type}_{n_items}_{n_bids}'
             os.makedirs(out_dir); print(f"{num_instances} instances in {out_dir}")
-            for i in tqdm(range(num_instances)):
+            for i in trange(num_instances):
                 filename = os.path.join(out_dir, f'instance_{i + 1}.lp')
                 generate_cauctions(n_items, n_bids, filename, rng)
 
