@@ -72,6 +72,7 @@ def process(policy, data_loader, optimizer=None):
                 optimizer.zero_grad()
                 loss.backward()  # Does backpropagation and calculates gradients
                 optimizer.step()  # Updates the weights accordingly
+                # wb.watch(policy)  # Save gradients to W&B
 
             avg_loss += loss.item() * action.shape[0]
             avg_acc += th.sum(th.eq(y_pred, target)).item()
@@ -93,31 +94,29 @@ if __name__ == "__main__":
     parser.add_argument(
         'problem',
         help='MILP instance type to process.',
-        choices=config['problems'],
+        choices=config['problems']
     )
     parser.add_argument(
         '-s', '--seed',
         help='Random generator seed.',
+        default=config['seed'],
         type=int,
-        default=0,
     )
     parser.add_argument(
         '-g', '--gpu',
         help='CUDA GPU id (-1 for CPU).',
+        default=config['gpu'],
         type=int,
-        default=-1,
     )
     args = parser.parse_args()
 
     # --- HYPER PARAMETERS --- #
     model = "MLP"
-    max_epochs = 1000
+    max_epochs = 10000
     batch_train = 32
     batch_valid = 128
+    patience = 500
     lr = 5e-3
-
-    difficulty = config['difficulty'][args.problem]
-    static = True
 
     # --- PYTORCH SETUP --- #
     if args.gpu == -1:
@@ -126,8 +125,10 @@ if __name__ == "__main__":
     else:
         os.environ['CUDA_VISIBLE_DEVICES'] = f'{args.gpu}'
         device = f"cuda:0"
+    th.manual_seed(args.seed)
 
     # --- POLICY AND DATA --- #
+    difficulty = config['difficulty'][args.problem]
     sample_dir = f'data/{args.problem}/samples/valid_{difficulty}'
     valid_files = [str(file) for file in glob.glob(sample_dir + '/sample_*.pkl')]
     sample_dir = f'data/{args.problem}/samples/train_{difficulty}'
@@ -166,8 +167,8 @@ if __name__ == "__main__":
     else:
         raise NotImplementedError
 
-    optimizer = th.optim.Adam(model.parameters(), lr=lr)
-    scheduler = Scheduler(optimizer, factor=0.2, patience=2500)
+    optimizer = th.optim.Adam(model.parameters(), lr=config['lr'])
+    scheduler = Scheduler(optimizer, factor=0.2, patience=patience)
 
     # --- LOG --- #
 
@@ -191,8 +192,6 @@ if __name__ == "__main__":
     log(f"seed {args.seed}", logfile)
 
     total_elapsed_time = 0
-    epoch_loss = []
-    epoch_acc = []
     best_epoch = 0
     for epoch in range(max_epochs + 1):
         log(f'** Epoch {epoch}', logfile)
@@ -207,9 +206,6 @@ if __name__ == "__main__":
         valid_loss, valid_acc = process(model, valid_loader)
         log(f'Epoch {epoch} | valid loss: {valid_loss:.3f} | accuracy: {valid_acc:.3f}', logfile)
         wb.log({'valid_loss': valid_loss, 'valid_acc': valid_acc}, step=epoch)
-
-        epoch_loss.append([train_loss, valid_loss])
-        epoch_acc.append([train_acc, valid_acc])
 
         elapsed_time = time.time() - start_time
         total_elapsed_time += elapsed_time

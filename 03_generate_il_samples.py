@@ -232,19 +232,19 @@ if __name__ == '__main__':
         '-s', '--seed',
         help='Random generator seed.',
         type=utilities.valid_seed,
-        default=0,
+        default=config['seed'],
     )
     parser.add_argument(
         '-j', '--njobs',
         help='Number of parallel jobs.',
         type=int,
-        default=1
+        default=1,
     )
     parser.add_argument(
         '-r', '--ratio',
         help='Samples per instance ratio',
         type=int,
-        default=10
+        default=10,
     )
 
     args = parser.parse_args()

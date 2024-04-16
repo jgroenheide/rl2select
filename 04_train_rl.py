@@ -34,34 +34,18 @@ if __name__ == '__main__':
         help='Training mode.',
         choices=['mdp', 'tmdp+DFS', 'tmdp+ObjLim'],
     )
-    # parser.add_argument(
-    #     '-s', '--seed',
-    #     help='Random generator seed.',
-    #     type=int,
-    #     default=0,
-    # )
-    # add all config parameters as optional command-line arguments
-    for param, value in config.items():
-        if param == 'gpu':
-            parser.add_argument(
-                '-g', '--gpu',
-                help='CUDA GPU id (-1 for CPU).',
-                type=type(value),
-                default=argparse.SUPPRESS,
-            )
-        elif param == 'seed':
-            parser.add_argument(
-                '-s', '--seed',
-                help='Random generator seed.',
-                type=int,
-                default=0,
-            )
-        else:
-            parser.add_argument(
-                f"--{param}",
-                type=type(value),
-                default=argparse.SUPPRESS,
-            )
+    parser.add_argument(
+        '-s', '--seed',
+        help='Random generator seed.',
+        default=config['seed'],
+        type=int
+    )
+    parser.add_argument(
+        '-g', '--gpu',
+        help='CUDA GPU id (-1 for CPU).',
+        default=config['gpu'],
+        type=int
+    )
     args = parser.parse_args()
 
     # override config with command-line arguments if provided
@@ -81,14 +65,14 @@ if __name__ == '__main__':
     from brain import Brain
     from agent import AgentPool
 
-    if config['gpu'] > -1:
+    if args.gpu > -1:
         th.backends.cudnn.deterministic = True
         th.backends.cudnn.benchmark = False
         print(f"Number of CUDA devices: {th.cuda.device_count()}")
         print(f"Active CUDA Device: {th.cuda.current_device()}")
 
-    rng = np.random.RandomState(config['seed'])
-    th.manual_seed(config['seed'])
+    rng = np.random.RandomState(args.seed)
+    th.manual_seed(args.seed)
 
     # data
     difficulty = config['difficulty'][args.problem]

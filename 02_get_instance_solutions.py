@@ -120,20 +120,20 @@ if __name__ == '__main__':
     parser.add_argument(
         '-s', '--seed',
         help='Random generator seed.',
+        default=config['seed'],
         type=utilities.valid_seed,
-        default=0,
     )
     parser.add_argument(
         '-j', '--njobs',
         help='Number of parallel jobs.',
-        type=int,
         default=1,
+        type=int,
     )
     parser.add_argument(
         '-k', '--ksols',
         help='Number of solutions to save.',
+        default=config['k'],
         type=int,
-        default=10
     )
     args = parser.parse_args()
 

@@ -175,11 +175,11 @@ def generate_indset(graph, filename):
             inequalities.add((node,))
 
     with open(filename, 'w') as lp_file:
-        lp_file.write("maximize\nOBJ: " + " + ".join([f"x{node + 1}" for node in graph]) + "\n")
+        lp_file.write("maximize\nOBJ: " + " + ".join([f"x{node}" for node in graph]) + "\n")
         lp_file.write("\nsubject to\n")
         for count, group in enumerate(inequalities):
-            lp_file.write(f"C{count + 1}:" + "".join([f" + x{node + 1}" for node in sorted(group)]) + " <= 1\n")
-        lp_file.write("\nbinary\n" + " ".join([f"x{node + 1}" for node in graph]) + "\n")
+            lp_file.write(f"C{count}: " + " + ".join([f"x{node}" for node in sorted(group)]) + " <= 1\n")
+        lp_file.write("\nbinary\n" + " ".join([f"x{node}" for node in graph]) + "\n")
 
 def generate_general_indset(graph, filename, alphaE2, random):
     """
@@ -202,8 +202,8 @@ def generate_general_indset(graph, filename, alphaE2, random):
 
     # Create IP, write it to file, and solve it with CPLEX
     with open(filename, 'w') as lp_file:
-        lp_file.write("maximize\nOBJ:" + " + ".join([f"10x{node}" for node in graph])
-                      + " - ".join([f"y{node1}_{node2}" for node1, node2 in E2]))
+        lp_file.write("maximize\nOBJ: " + " + ".join([f"10x{node}" for node in graph])
+                      + "".join([f" - y{node1}_{node2}" for node1, node2 in E2]))
         lp_file.write("\n\nsubject to\n")
         for count, (node1, node2) in enumerate(graph.edges):
             y = f" - y{node1}_{node2}" if (node1, node2) in E2 else ""
@@ -256,27 +256,25 @@ def generate_capacitated_facility_location(n_customers, n_facilities, ratio, fil
 
     # write problem
     with open(filename, 'w') as file:
-        file.write("minimize\nobj:")
-        file.write(
-            "".join([f" +{trans_costs[i, j]} x_{i + 1}_{j + 1}" for i in range(n_customers) for j in range(n_facilities)]))
-        file.write("".join([f" +{fixed_costs[j]} y_{j + 1}" for j in range(n_facilities)]))
+        file.write("minimize\nobj: ")
+        file.write(" + ".join([f"{trans_costs[i, j]}x_{i + 1}_{j + 1}" for i in range(n_customers) for j in range(n_facilities)]))
+        file.write("".join([f" + {fixed_costs[j]}y_{j + 1}" for j in range(n_facilities)]))
 
         file.write("\n\nsubject to\n")
         for i in range(n_customers):
-            file.write(f"demand_{i + 1}:" + "".join([f" -1 x_{i + 1}_{j + 1}" for j in range(n_facilities)]) + f" <= -1\n")
+            file.write(f"demand_{i + 1}: " + " - ".join([f"x_{i + 1}_{j + 1}" for j in range(n_facilities)]) + f" <= -1\n")
         for j in range(n_facilities):
-            file.write(f"capacity_{j + 1}:" + "".join([f" + {demands[i]}x_{i + 1}_{j + 1}" for i in range(n_customers)]) +
-                       f" - {capacities[j]} y_{j + 1} <= 0\n")
+            file.write(f"capacity_{j + 1}: " + " + ".join([f"{demands[i]}x_{i + 1}_{j + 1}" for i in range(n_customers)]) +
+                       f" - {capacities[j]}y_{j + 1} <= 0\n")
 
         # optional constraints for LP relaxation tightening
-        file.write("total_capacity:" + "".join(
-            [f" -{capacities[j]} y_{j + 1}" for j in range(n_facilities)]) + f" <= -{total_demand}\n")
+        file.write("total_capacity: " + " - ".join([f"{capacities[j]}y_{j + 1}" for j in range(n_facilities)]) + f" <= -{total_demand}\n")
         for i in range(n_customers):
             for j in range(n_facilities):
-                file.write(f"affectation_{i + 1}_{j + 1}: +1 x_{i + 1}_{j + 1} -1 y_{j + 1} <= 0\n")
+                file.write(f"affectation_{i + 1}_{j + 1}: x_{i + 1}_{j + 1} - y_{j + 1} <= 0\n")
 
         file.write("\nbinary\n")
-        file.write(" ".join([f"y_{j + 1}" for j in range(n_facilities)]))
+        file.write(" ".join([f"y_{j + 1}" for j in range(n_facilities)]) + "\n")
         file.write(" ".join([f"x_{i + 1}_{j + 1}" for i in range(n_customers) for j in range(n_facilities)]))
 
 def generate_multicommodity_network_flow(graph, n_nodes, n_commodities, filename, random):
@@ -324,12 +322,12 @@ def generate_multicommodity_network_flow(graph, n_nodes, n_commodities, filename
     demands = random.integers(10, 100, size=n_commodities)
 
     with open(filename, 'w') as file:
-        file.write("minimize\nOBJ:")
+        file.write("minimize\nOBJ: ")
         # demand_k * variable_cost * fraction of demand over edge (i, j) for commodity k
         file.write(" + ".join([f"{demands[k] * adj_mat[i][j][0]}x_{i + 1}_{j + 1}_{k + 1}"
                                for i, j in graph.edges for k in range(n_commodities)]))
         # fixed_cost * whether edge (i, j) is active
-        file.write(" + ".join([f"{adj_mat[i][j][1]}y_{i + 1}_{j + 1}" for i, j in graph.edges]))
+        file.write("".join([f" + {adj_mat[i][j][1]}y_{i + 1}_{j + 1}" for i, j in graph.edges]))
 
         file.write("\nsubject to\n")
         for i in range(n_nodes):
@@ -341,7 +339,7 @@ def generate_multicommodity_network_flow(graph, n_nodes, n_commodities, filename
                            f" = {int(commodities[k][0] == i) - int(commodities[k][1] == i)}\n")
 
         for i, j in graph.edges:
-            file.write(f"arc_{i + 1}_{j + 1}:" +
+            file.write(f"arc_{i + 1}_{j + 1}: " +
                        " + ".join([f"{demands[k]}x_{i + 1}_{j + 1}_{k + 1}" for k in range(n_commodities)]) +
                        f" - {adj_mat[i][j][2]}y_{i + 1}_{j + 1} <= 0\n")
 
@@ -732,14 +730,14 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument(
         'problem',
-        help='MILP instance type to process.',
+        help='Instance type to process.',
         choices=config['problems'],
     )
     parser.add_argument(
         '-s', '--seed',
-        help='Random generator seed (default 0).',
+        help='Random generator seed.',
         type=utilities.valid_seed,
-        default=0,
+        default=config['seed'],
     )
     args = parser.parse_args()
 

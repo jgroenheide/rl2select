@@ -1,20 +1,23 @@
 {
   "lr": 5e-3,
+  "model": "MLP",
+  "num_epochs": 10000,
 
-  "num_epochs": 20000,
+  "batch_size": 32,
+  "batch_valid": 128,
+  "patience": -1,
+
   "time_limit": 1500,
   "num_episodes_per_epoch": 10,
   "sample_rate": 0.05,
-
-  "batch_size": 32,
   "num_agents": 12,
 
   "num_valid_instances": 20,
   "num_valid_seeds": 5,
   "validate_every": 50,
 
-  "gpu": -1,
   "seed": 0,
+  "gpu": -1,
   "k": 10,
 
   "problems": ["indset", "gisp", "cflp", "fcmcnf", "setcover", "mknapsack", "cauctions"],
