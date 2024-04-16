@@ -9,12 +9,12 @@ import os
 import json
 import glob
 import numpy as np
+import wandb as wb
 import argparse
 
 from tqdm import tqdm
 from datetime import datetime
 from scipy.stats.mstats import gmean
-import torch.utils.tensorboard as tb
 from utilities import log
 
 if __name__ == '__main__':
@@ -129,9 +129,17 @@ if __name__ == '__main__':
     running_dir = f'experiments/{args.problem}_{difficulty}/{args.seed}_{timestamp}'
     os.makedirs(running_dir, exist_ok=True)
     logfile = os.path.join(running_dir, 'rl_train_log.txt')
-    if os.path.exists(logfile):
-        os.remove(logfile)
-    log(f"Training on {len(train_instances)} training instances and {len(valid_instances)} validation instances", logfile)
+    wb.init(project="rl2select", config=config)
+
+    log(f"training instances: {len(train_instances)}", logfile)
+    log(f"validation instances: {len(valid_instances)}", logfile)
+    # log(f"max epochs: {max_epochs}", logfile)
+    # log(f"batch size (train): {batch_train}", logfile)
+    # log(f"batch_size (valid): {batch_valid}", logfile)
+    # log(f"learning rate: {lr}", logfile)
+    log(f"problem: {args.problem}", logfile)
+    log(f"gpu: {args.gpu}", logfile)
+    log(f"seed {args.seed}", logfile)
 
     brain = Brain(config, device)
     agent_pool = AgentPool(brain, config['num_agents'], config['time_limit'], args.mode)
@@ -232,7 +240,7 @@ if __name__ == '__main__':
                 'train_entropy': t_losses.get('entropy', None),
             })
 
-        log(epoch_data, logfile)
+        wb.log(epoch_data, step=epoch)
 
         # If time limit is hit, stop process
         elapsed_time = datetime.now() - start_time

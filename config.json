@@ -1,8 +1,6 @@
 {
   "lr": 5e-3,
 
-  "entropy_bonus": 1e-5,
-
   "num_epochs": 20000,
   "time_limit": 1500,
   "num_episodes_per_epoch": 10,

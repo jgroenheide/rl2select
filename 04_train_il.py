@@ -13,12 +13,12 @@ import argparse
 import model as ml
 import numpy as np
 import torch as th
+import wandb as wb
 import torch_geometric
 
 from utilities import log
 from datetime import datetime
 from torch.utils.data import DataLoader
-from torch.utils.tensorboard import SummaryWriter
 
 
 class Scheduler(th.optim.lr_scheduler.ReduceLROnPlateau):
@@ -111,11 +111,10 @@ if __name__ == "__main__":
 
     # --- HYPER PARAMETERS --- #
     model = "MLP"
-    max_epochs = 10000
+    max_epochs = 1000
     batch_train = 32
     batch_valid = 128
-    lr = 0.01  # 5e-3
-    entropy_bonus = 0.0
+    lr = 5e-3
 
     difficulty = config['difficulty'][args.problem]
     static = True
@@ -143,10 +142,6 @@ if __name__ == "__main__":
     # norm_values = [1 / x for x in class_dist]
     norm_values = [max(class_dist[1] / class_dist[0], 1),
                    max(class_dist[0] / class_dist[1], 1)]
-
-    # minority = int(class_dist[1] < class_dist[0])
-    # norm_values = [1, 1]
-    # norm_values[minority] = class_dist[1 - minority] / class_dist[minority]
 
     if model == "MLP":
         model = ml.MLPPolicy().to(device)
@@ -183,20 +178,17 @@ if __name__ == "__main__":
     running_dir = f'experiments/{args.problem}_{difficulty}/{args.seed}_{timestamp}'
     os.makedirs(running_dir, exist_ok=True)
     logfile = os.path.join(running_dir, 'il_train_log.txt')
+    wb.init(project="rl2select", config=config)
 
-    log(f"max_epochs: {max_epochs}", logfile)
-    log(f"batch_size: {batch_train}", logfile)
-    log(f"valid_batch_size : {batch_valid}", logfile)
+    log(f"training files: {len(train_files)}", logfile)
+    log(f"validation files: {len(valid_files)}", logfile)
+    log(f"batch size (train): {batch_train}", logfile)
+    log(f"batch_size (valid): {batch_valid}", logfile)
+    log(f"max epochs: {max_epochs}", logfile)
     log(f"learning rate: {lr}", logfile)
-    log(f"entropy bonus: {entropy_bonus}", logfile)
     log(f"problem: {args.problem}", logfile)
     log(f"gpu: {args.gpu}", logfile)
     log(f"seed {args.seed}", logfile)
-    log(f"train_files: {len(train_files)}", logfile)
-    log(f"valid_files: {len(valid_files)}", logfile)
-
-    tensorboard_path = os.path.join(running_dir, 'tensorboard_log')
-    writer = SummaryWriter(log_dir=tensorboard_path)
 
     total_elapsed_time = 0
     epoch_loss = []
@@ -209,14 +201,12 @@ if __name__ == "__main__":
         # TRAIN
         train_loss, train_acc = process(model, train_loader, optimizer)
         log(f'Epoch {epoch} | train loss: {train_loss:.3f} | accuracy: {train_acc:.3f}', logfile)
-        writer.add_scalar(f'{args.seed}/Loss/train', train_loss, epoch)
-        writer.add_scalar(f'{args.seed}/Accuracy/train', train_acc, epoch)
+        wb.log({'train_loss': train_loss, 'train_acc': train_acc}, step=epoch)
 
         # TEST
         valid_loss, valid_acc = process(model, valid_loader)
         log(f'Epoch {epoch} | valid loss: {valid_loss:.3f} | accuracy: {valid_acc:.3f}', logfile)
-        writer.add_scalar(f'{args.seed}/Loss/valid', valid_loss, epoch)
-        writer.add_scalar(f'{args.seed}/Accuracy/valid', valid_acc, epoch)
+        wb.log({'valid_loss': valid_loss, 'valid_acc': valid_acc}, step=epoch)
 
         epoch_loss.append([train_loss, valid_loss])
         epoch_acc.append([train_acc, valid_acc])
@@ -234,11 +224,9 @@ if __name__ == "__main__":
             log(f'Epoch {epoch} | {scheduler.patience} epochs without improvement, lowering learning rate', logfile)
         elif scheduler.step_result == 2:  # ABORT
             log(f'Epoch {epoch} | no improvements for {2 * scheduler.patience} epochs, early stopping', logfile)
-            # break
-
-    writer.close()
+            break
 
     model.load_state_dict(th.load(f'{running_dir}/best_params_il.pkl'))
     valid_loss, valid_acc = process(model, valid_loader)
-    log(f"PROCESS COMPLETED: BEST MODEL FOUND IN EPOCH {best_epoch}")
+    log(f"PROCESS COMPLETED: BEST MODEL FOUND IN EPOCH {best_epoch}", logfile)
     log(f"BEST VALID LOSS: {valid_loss:0.3f} | BEST VALID ACCURACY: {valid_acc:0.3f}", logfile)
