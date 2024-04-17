@@ -95,7 +95,7 @@ def send_orders(orders_queue, instances, random):
     Parameters
     ----------
     orders_queue : mp.Queue
-        Queue to which to send orders.
+        Limited-size queue to which to send orders.
     instances : list
         Instance file names from which to sample episodes.
     random: np.random.Generator
@@ -131,8 +131,15 @@ def collect_samples(instances, out_dir, random, n_jobs, max_samples):
     os.makedirs(out_dir, exist_ok=True)
 
     # start workers
-    orders_queue = mp.Queue(maxsize=2*n_jobs)
+    # orders_queue = mp.Queue(maxsize=2*n_jobs)
     answers_queue = mp.SimpleQueue()
+
+    # temp solution for limited threads
+    orders_queue = mp.Queue()
+    for episode, instance in enumerate(instances):
+        orders_queue.put([episode, instance, random.integers(2**31)])
+    print(f'{len(instances)} instances on queue.')
+
     workers = []
     for i in range(n_jobs):
         p = mp.Process(
@@ -143,12 +150,12 @@ def collect_samples(instances, out_dir, random, n_jobs, max_samples):
         p.start()
 
     # start dispatcher
-    dispatcher = mp.Process(
-        target=send_orders,
-        args=(orders_queue, instances, random),
-        daemon=True)
-    dispatcher.start()
-    print(f"[m {os.getpid()}] dispatcher started...")
+    # dispatcher = mp.Process(
+    #     target=send_orders,
+    #     args=(orders_queue, instances, random),
+    #     daemon=True)
+    # dispatcher.start()
+    # print(f"[m {os.getpid()}] dispatcher started...")
 
     # record answers and write samples
     buffer = {}
@@ -170,8 +177,8 @@ def collect_samples(instances, out_dir, random, n_jobs, max_samples):
                 in_buffer += 1
 
         # early stop dispatcher (hard)
-        if in_buffer + n_samples >= max_samples and dispatcher.is_alive():
-            dispatcher.terminate()
+        if in_buffer + n_samples >= max_samples:  # and dispatcher.is_alive():
+            # dispatcher.terminate()
             print(f"[m {os.getpid()}] dispatcher stopped...")
 
         # if current_episode object is not empty...
