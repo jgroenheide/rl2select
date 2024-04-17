@@ -32,7 +32,7 @@ def make_samples(in_queue, out_queue, out_dir):
     while True:
         # Fetch an instance...
         episode, instance, seed = in_queue.get()
-        instance_id = f'[w {os.getpid()}] episode {episode}, seed {seed}'
+        instance_id = f'[w {os.getpid()}] episode {episode}'
         print(f'{instance_id}: Processing instance \'{instance}\'...')
 
         # Retrieve available solution files
@@ -75,8 +75,9 @@ def make_samples(in_queue, out_queue, out_dir):
         m.optimize()
         m.freeProb()
 
-        action_counts_norm = [f'{100 * x / oracle.sample_count:.1f}' for x in oracle.action_count]
-        print(f'(Left, Right: Both): {action_counts_norm}: {100 * oracle.both_count / oracle.sample_count:.1f}')
+        count = max(oracle.sample_count, 1)
+        action_count = [f'{action / count:.2f}' for action in oracle.action_count]
+        print(f'{instance_id}: {action_count}: {oracle.both_count / count:.2f}')
         print(f'{instance_id}: Process completed, {oracle.sample_count} samples')
 
         out_queue.put({

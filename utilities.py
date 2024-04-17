@@ -1,14 +1,8 @@
-import argparse
 import datetime
-import numpy as np
-import torch as th
-import scipy.sparse as sp
-import pyscipopt as scip
-import matplotlib.pyplot as plt
-import pickle
-import gzip
-
 import observation
+import numpy as np
+import scipy as sp
+import pyscipopt as scip
 
 
 def valid_seed(seed):
@@ -146,11 +140,11 @@ def extract_GNN_state(model, buffer=None):
         edge_col_idxs = buffer['state']['edge_col_idxs']
         edge_feats = buffer['state']['edge_feats']
     else:
-        coef_matrix = sp.csr_matrix(
+        coef_matrix = sp.sparse.csr_matrix(
             (cons_state['coefs']['values'] / row_norms[cons_state['coefs']['row_ids']],
              (cons_state['coefs']['row_ids'], cons_state['coefs']['col_ids'])),
             shape=(len(cons_state['nnon_zeros']), len(var_state['coefs'])))
-        coef_matrix = sp.vstack((
+        coef_matrix = sp.sparse.vstack((
             -coef_matrix[has_lhs, :],
              coef_matrix[has_rhs, :])).tocoo(copy=False)
 
@@ -231,43 +225,6 @@ def extract_MLP_state(model, node1, node2):
     return branching_features, node_features1, node_features2, global_features
 
 
-def create_plots(epoch_errs, epoch_loss, save_dir=None):
-    fig = plt.figure()
-    plt.plot(epoch_errs)
-    plt.xlabel('Epoch')
-    plt.ylabel('Error')
-    plt.legend(['Train', 'Valid'])
-    if save_dir is not None:
-        plt.savefig(save_dir + f'/errors.png')
-    else:
-        plt.show()
-    plt.close(fig)
-
-    fig = plt.figure()
-    plt.plot(epoch_loss)
-    plt.xlabel('Epoch')
-    plt.ylabel('Loss')
-    plt.legend(['Train', 'Valid'])
-    if save_dir is not None:
-        plt.savefig(save_dir + f'/losses.png')
-    else:
-        plt.show()
-    plt.close(fig)
-
-
-def calc_baseline(data, device):
-    zeros = 0
-    ones = 0
-    twos = 0
-    for batch in data:
-        batch = batch.to(device)
-        labels = batch[:, -1]
-        zeros += th.sum(labels == 0).item()
-        ones += th.sum(labels == 1).item()
-        twos += th.sum(labels == 2).item()
-    return max(zeros, ones, twos) / (zeros + ones + twos)
-
-
 def compute_extended_variable_features(state, candidates):
     """
     Utility to extract variable features only from a bipartite state representation.
@@ -324,83 +281,3 @@ def compute_extended_variable_features(state, candidates):
     cand_states[np.isnan(cand_states)] = 0
 
     return cand_states
-
-
-def preprocess_variable_features(features, interaction_augmentation, normalization):
-    """
-    Features preprocessing following Khalil et al. (2016) Learning to Branch in Mixed Integer Programming.
-
-    Parameters
-    ----------
-    features : 2D np.ndarray
-        The candidate variable features to preprocess.
-    interaction_augmentation : bool
-        Whether to augment features with 2-degree interactions (useful for linear models such as SVMs).
-    normalization : bool
-        Wether to normalize features in [0, 1] (i.e., query-based normalization).
-
-    Returns
-    -------
-    variable_features : 2D np.ndarray
-        The preprocessed variable features.
-    """
-    # 2-degree polynomial feature augmentation
-    if interaction_augmentation:
-        interactions = (
-                np.expand_dims(features, axis=-1) * \
-                np.expand_dims(features, axis=-2)
-        ).reshape((features.shape[0], -1))
-        features = np.concatenate([features, interactions], axis=1)
-
-    # query-based normalization in [0, 1]
-    if normalization:
-        features -= features.min(axis=0, keepdims=True)
-        max_val = features.max(axis=0, keepdims=True)
-        max_val[max_val == 0] = 1
-        features /= max_val
-
-    return features
-
-
-def load_flat_samples(filename, feat_type, label_type, augment_feats, normalize_feats):
-    with gzip.open(filename, 'rb') as file:
-        sample = pickle.load(file)
-
-    state, khalil_state, best_cand, cands, cand_scores = sample['data']
-
-    cands = np.array(cands)
-    cand_scores = np.array(cand_scores)
-
-    cand_states = []
-    if feat_type in ('all', 'gcnn_agg'):
-        cand_states.append(compute_extended_variable_features(state, cands))
-    if feat_type in ('all', 'khalil'):
-        cand_states.append(khalil_state)
-    cand_states = np.concatenate(cand_states, axis=1)
-
-    best_cand_idx = np.where(cands == best_cand)[0][0]
-
-    # feature preprocessing
-    cand_states = preprocess_variable_features(cand_states, interaction_augmentation=augment_feats,
-                                               normalization=normalize_feats)
-
-    if label_type == 'scores':
-        cand_labels = cand_scores
-
-    elif label_type == 'ranks':
-        cand_labels = np.empty(len(cand_scores), dtype=int)
-        cand_labels[cand_scores.argsort()] = np.arange(len(cand_scores))
-
-    elif label_type == 'bipartite_ranks':
-        # scores quantile discretization as in
-        # Khalil et al. (2016) Learning to Branch in Mixed Integer Programming
-        cand_labels = np.empty(len(cand_scores), dtype=int)
-        cand_labels[cand_scores >= 0.8 * cand_scores.max()] = 1
-        cand_labels[cand_scores < 0.8 * cand_scores.max()] = 0
-
-    else:
-        raise ValueError(f"Invalid label type: '{label_type}'")
-
-    return cand_states, cand_labels, best_cand_idx
-
-

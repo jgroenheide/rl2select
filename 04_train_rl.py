@@ -9,10 +9,10 @@ import os
 import json
 import glob
 import numpy as np
+import torch as th
 import wandb as wb
 import argparse
 
-from tqdm import tqdm
 from datetime import datetime
 from scipy.stats.mstats import gmean
 from utilities import log
@@ -61,7 +61,6 @@ if __name__ == '__main__':
         device = f"cuda:0"
 
     # import torch after gpu configuration
-    import torch as th
     from brain import Brain
     from agent import AgentPool
 
@@ -137,13 +136,13 @@ if __name__ == '__main__':
     # training loop
     start_time = datetime.now()
     best_tree_size = np.inf
-    for epoch in tqdm(range(config['num_epochs'] + 1)):
+    for epoch in range(config['num_epochs'] + 1):
         log(f'** Epoch {epoch}', logfile)
         epoch_data = {}
 
         # Allow preempted jobs to access policy  [START]
         # VALIDATION #
-        if (epoch % config['validate_every'] == 0) or (epoch == config['num_epochs']):
+        if (epoch % config['valid_freq'] == 0) or (epoch == config['num_epochs']):
             _, v_stats, v_queue, v_access = v_next
             v_access.set()  # Give the validation agents access to the policy!
             log(f"  {len(valid_batch)} validation jobs running (preempted)", logfile)
@@ -164,7 +163,7 @@ if __name__ == '__main__':
         # Start next epoch's jobs  [CREATE]
         # Get a new group of agents into position
         # VALIDATION #
-        if ((epoch + 1) % config['validate_every'] == 0) or ((epoch + 1) == config['num_epochs']):
+        if ((epoch + 1) % config['valid_freq'] == 0) or ((epoch + 1) == config['num_epochs']):
             v_next = agent_pool.start_job(valid_batch, sample_rate=0.0, greedy=True, block_policy=True)
         # TRAINING #
         if epoch + 1 < config['num_epochs']:
@@ -172,7 +171,7 @@ if __name__ == '__main__':
             t_next = agent_pool.start_job(train_batch, sample_rate=config['sample_rate'], greedy=False, block_policy=True)
 
         # VALIDATION #  [EVALUATE]
-        if (epoch % config['validate_every'] == 0) or (epoch == config['num_epochs']):
+        if (epoch % config['valid_freq'] == 0) or (epoch == config['num_epochs']):
             v_queue.join()  # wait for all validation episodes to be processed
             log('  validation jobs finished', logfile)
 
@@ -189,8 +188,8 @@ if __name__ == '__main__':
                 'valid_lpiters': np.mean(v_lpiterss),
             })
             if epoch == 0:
-                v_nnodes_0 = epoch_data['valid_nnodes'] if epoch_data['valid_nnodes'] != 0 else 1
-                v_nnodes_g_0 = epoch_data['valid_nnodes_g'] if epoch_data['valid_nnodes_g'] != 0 else 1
+                v_nnodes_0 = max(epoch_data['valid_nnodes'], 1)
+                v_nnodes_g_0 = max(epoch_data['valid_nnodes_g'], 1)
             epoch_data.update({
                 'valid_nnodes_norm': epoch_data['valid_nnodes'] / v_nnodes_0,
                 'valid_nnodes_g_norm': epoch_data['valid_nnodes_g'] / v_nnodes_g_0,
