@@ -37,7 +37,7 @@ class Brain:
             # for action, receiver in zip(actions, receivers):
             #     receiver.put(action)
 
-        responses = th.concatenate(actions)
+        responses = th.concatenate(actions).tolist()
         for receiver, response in zip(receivers, responses):
             receiver.put(response)
 

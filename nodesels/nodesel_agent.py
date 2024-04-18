@@ -34,7 +34,6 @@ class NodeselAgent(NodeselDFS):
             # print(f'return DFS node: {n}')
             return super().nodeselect()
         selnode = self.model.getBestChild()
-        print(f"depth: {selnode.getDepth()} -- lb: {selnode.getLowerbound()}")
         return {'selnode': selnode}
 
     def nodecomp(self, node1, node2):
@@ -52,8 +51,8 @@ class NodeselAgent(NodeselDFS):
         reward = self.model.getUpperbound()  # For primal bound improvement
 
         # For optimality-bound reward
-        _, children, _ = self.model.getOpenNodes()
-        bound = children[action].getLowerbound()
+        focus_node = self.model.getCurrentNode()
+        bound = focus_node.getLowerbound()
         sense = self.model.getObjectiveSense()
         if sense == "minimize":
             reward = (bound <= self.opt_sol) - 1

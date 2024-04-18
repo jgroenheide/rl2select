@@ -78,19 +78,20 @@ if __name__ == '__main__':
     difficulty = config['difficulty'][args.problem]
     maximization_probs = ['cauctions', 'indset', 'mkapsack']
 
-    # recover training / validation instances
+    # recover training / validation instances and collect
+    # the pre-computed optimal solutions for the instances
     instance_dir = f'data/{args.problem}/instances/valid_{difficulty}'
     valid_instances = [str(file) for file in glob.glob(instance_dir + '/instance_*.lp')]
+    with open(f"{instance_dir}/instance_solutions.json", "r") as f:
+        valid_sols = json.load(f)
+
     instance_dir = f'data/{args.problem}/instances/train_{difficulty}'
     train_instances = [str(file) for file in glob.glob(instance_dir + '/instance_*.lp')]
-
-    # collect the pre-computed optimal solutions for the training instances
     with open(f"{instance_dir}/instance_solutions.json", "r") as f:
         train_sols = json.load(f)
 
-    valid_batch = [{'path': instance, 'seed': seed}
-                   for instance in valid_instances
-                   for seed in range(config['num_valid_seeds'])]
+    valid_batch = [{'path': instance, 'seed': seed, 'sol': valid_sols[instance]['obj_val']}
+                   for instance in valid_instances for seed in range(config['num_valid_seeds'])]
 
 
     def train_batch_generator():
