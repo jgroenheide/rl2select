@@ -142,7 +142,16 @@ class NodeselEstimate(scip.Nodesel):
             # if we didn't find a solution yet, the cutoff bound is usually very bad:
             # use only 20% of the gap as cutoff bound
             if self.model.getNSolsFound() == 0:
-                cutoff_bound = lower_bound + 0.2 * (cutoff_bound - lower_bound)
+                # cutoff_bound = lower_bound + 0.2 * (cutoff_bound - lower_bound)
+                max_plunge_quot *= 0.2
+
+            # It turns out that using 20% of the gap as cutoff bound is equal to
+            # using 20% of the max_plunge_quot which can be shown by substitution
+            #  new_cutoff_bound = lower_bound + 0.2 * (cutoff_bound - lower_bound)
+            #  max_bound = lower_bound + max_plunge_quot * (new_cutoff_bound - lower_bound)
+            # substitute new_cutoff_bound:
+            #  max_bound = lower_bound + max_plunge_quot * (lower_bound + 0.2 * (cutoff_bound - lower_bound) - lower_bound)
+            #  max_bound = lower_bound + max_plunge_quot * (0.2 * (cutoff_bound - lower_bound))
 
             # check, if plunging is forced at the current depth
             # else calculate maximal plunging bound

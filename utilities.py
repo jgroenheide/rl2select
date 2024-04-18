@@ -22,8 +22,14 @@ def log(log_message, logfile=None):
             print(out, file=f)
 
 
-def init_scip_params(model, seed, presolving=True, heuristics=True, separating=True, conflict=True):
+def init_scip_params(model, seed, static=False, presolving=True, heuristics=True, separating=True, conflict=True):
     seed = seed % 2147483648  # SCIP seed range
+
+    if static:
+        presolving = False
+        heuristics = False
+        separating = False
+        conflict = False
 
     # set up randomization
     model.setBoolParam('randomization/permutevars', True)
@@ -223,61 +229,3 @@ def extract_MLP_state(model, node1, node2):
     # }
 
     return branching_features, node_features1, node_features2, global_features
-
-
-def compute_extended_variable_features(state, candidates):
-    """
-    Utility to extract variable features only from a bipartite state representation.
-
-    Parameters
-    ----------
-    state : dict
-        A bipartite state representation.
-    candidates: list of ints
-        List of candidate variables for which to compute features (given as indexes).
-
-    Returns
-    -------
-    variable_states : np.array
-        The resulting variable states.
-    """
-    constraint_features, edge_features, variable_features = state
-    constraint_features = constraint_features['values']
-    edge_indices = edge_features['indices']
-    edge_features = edge_features['values']
-    variable_features = variable_features['values']
-
-    cand_states = np.zeros((
-        len(candidates),
-        variable_features.shape[1] + 3 * (edge_features.shape[1] + constraint_features.shape[1]),
-    ))
-
-    # re-order edges according to variable index
-    edge_ordering = edge_indices[1].argsort()
-    edge_indices = edge_indices[:, edge_ordering]
-    edge_features = edge_features[edge_ordering]
-
-    # gather (ordered) neighbourhood features
-    nbr_feats = np.concatenate([
-        edge_features,
-        constraint_features[edge_indices[0]]
-    ], axis=1)
-
-    # split neighborhood features by variable, along with the corresponding variable
-    var_cuts = np.diff(edge_indices[1]).nonzero()[0] + 1
-    nbr_feats = np.split(nbr_feats, var_cuts)
-    nbr_vars = np.split(edge_indices[1], var_cuts)
-    assert all([all(vs[0] == vs) for vs in nbr_vars])
-    nbr_vars = [vs[0] for vs in nbr_vars]
-
-    # process candidate variable neighborhoods only
-    for var, nbr_id, cand_id in zip(*np.intersect1d(nbr_vars, candidates, return_indices=True)):
-        cand_states[cand_id, :] = np.concatenate([
-            variable_features[var, :],
-            nbr_feats[nbr_id].min(axis=0),
-            nbr_feats[nbr_id].mean(axis=0),
-            nbr_feats[nbr_id].max(axis=0)])
-
-    cand_states[np.isnan(cand_states)] = 0
-
-    return cand_states

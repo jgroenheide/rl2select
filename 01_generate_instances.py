@@ -207,8 +207,8 @@ def generate_general_indset(graph, filename, alphaE2, random):
         lp_file.write("\n\nsubject to\n")
         for count, (node1, node2) in enumerate(graph.edges):
             y = f" - y{node1}_{node2}" if (node1, node2) in E2 else ""
-            lp_file.write(f"C{count + 1}: x{node1} + x{node2}" + y + " <= 1\n")
-        lp_file.write("\nbinary\n" + " ".join([f"x{node}" for node in graph]))
+            lp_file.write(f"C{count + 1}: x{node1} + x{node2}" + y + " <= 1")
+        lp_file.write("\n\nbinary\n" + " ".join([f"x{node}" for node in graph]))
         lp_file.write("".join([f" y{node1}_{node2}" for node1, node2 in E2]))
 
 def generate_capacitated_facility_location(n_customers, n_facilities, ratio, filename, random):
@@ -257,25 +257,38 @@ def generate_capacitated_facility_location(n_customers, n_facilities, ratio, fil
     # write problem
     with open(filename, 'w') as file:
         file.write("minimize\nobj: ")
-        file.write(" + ".join([f"{trans_costs[i, j]}x_{i + 1}_{j + 1}" for i in range(n_customers) for j in range(n_facilities)]))
-        file.write("".join([f" + {fixed_costs[j]}y_{j + 1}" for j in range(n_facilities)]))
+        file.write(" + ".join([f"{trans_costs[i, j]}x_{i + 1}_{j + 1}"
+                               for i in range(n_customers)
+                               for j in range(n_facilities)]))
+        file.write("".join([f" + {fixed_costs[j]}y_{j + 1}"
+                            for j in range(n_facilities)]))
 
         file.write("\n\nsubject to\n")
         for i in range(n_customers):
-            file.write(f"demand_{i + 1}: " + " - ".join([f"x_{i + 1}_{j + 1}" for j in range(n_facilities)]) + f" <= -1\n")
+            file.write(f"demand_{i + 1}: " +
+                       " - ".join([f"x_{i + 1}_{j + 1}"
+                                   for j in range(n_facilities)])
+                       + f" <= -1\n")
         for j in range(n_facilities):
-            file.write(f"capacity_{j + 1}: " + " + ".join([f"{demands[i]}x_{i + 1}_{j + 1}" for i in range(n_customers)]) +
+            file.write(f"capacity_{j + 1}: " +
+                       " + ".join([f"{demands[i]}x_{i + 1}_{j + 1}"
+                                   for i in range(n_customers)]) +
                        f" - {capacities[j]}y_{j + 1} <= 0\n")
 
         # optional constraints for LP relaxation tightening
-        file.write("total_capacity: " + " - ".join([f"{capacities[j]}y_{j + 1}" for j in range(n_facilities)]) + f" <= -{total_demand}\n")
+        file.write("total_capacity: " +
+                   " - ".join([f"{capacities[j]}y_{j + 1}"
+                               for j in range(n_facilities)]) +
+                   f" <= -{total_demand}\n")
         for i in range(n_customers):
             for j in range(n_facilities):
-                file.write(f"affectation_{i + 1}_{j + 1}: x_{i + 1}_{j + 1} - y_{j + 1} <= 0\n")
+                file.write(f"affectation_{i + 1}_{j + 1}: x_{i + 1}_{j + 1} - y_{j + 1} <= 0")
 
-        file.write("\nbinary\n")
-        file.write(" ".join([f"y_{j + 1}" for j in range(n_facilities)]) + "\n")
-        file.write(" ".join([f"x_{i + 1}_{j + 1}" for i in range(n_customers) for j in range(n_facilities)]))
+        file.write("\n\nbinary\n")
+        file.write(" ".join([f"y_{j + 1}" for j in range(n_facilities)]))
+        file.write("".join([f" x_{i + 1}_{j + 1}"
+                             for i in range(n_customers)
+                             for j in range(n_facilities)]))
 
 def generate_multicommodity_network_flow(graph, n_nodes, n_commodities, filename, random):
     """
@@ -340,7 +353,8 @@ def generate_multicommodity_network_flow(graph, n_nodes, n_commodities, filename
 
         for i, j in graph.edges:
             file.write(f"arc_{i + 1}_{j + 1}: " +
-                       " + ".join([f"{demands[k]}x_{i + 1}_{j + 1}_{k + 1}" for k in range(n_commodities)]) +
+                       " + ".join([f"{demands[k]}x_{i + 1}_{j + 1}_{k + 1}"
+                                   for k in range(n_commodities)]) +
                        f" - {adj_mat[i][j][2]}y_{i + 1}_{j + 1} <= 0\n")
 
         file.write("\nbinary\n" + " ".join([f"y_{i + 1}_{j + 1}" for i, j in graph.edges]))

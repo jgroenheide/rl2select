@@ -94,7 +94,7 @@ if __name__ == '__main__':
 
     def train_batch_generator():
         eps = -0.1 if args.problem in maximization_probs else 0.1
-        train_batches = [{'path': instance, 'seed': rng.randint(0, 2 ** 31), 'sol': train_sols[instance] + eps}
+        train_batches = [{'path': instance, 'seed': rng.randint(0, 2 ** 31), 'sol': train_sols[instance]['obj_val'] + eps}
                          for instance in rng.choice(train_instances, size=config['num_episodes_per_epoch'], replace=True)]
         while True:
             yield train_batches

@@ -14,7 +14,7 @@
   "time_limit": 1500,
   "num_episodes_per_epoch": 10,
   "sample_rate": 0.05,
-  "num_agents": 12,
+  "num_agents": 4,
 
   "num_valid_instances": 20,
   "num_valid_seeds": 5,

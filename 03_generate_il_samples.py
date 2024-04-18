@@ -112,8 +112,8 @@ def send_orders(orders_queue, instances, random):
 
 def collect_samples(instances, out_dir, random, n_jobs, max_samples):
     """
-    Runs branch-and-bound episodes on the given set of instances, and collects
-    randomly (state, action) pairs from the 'vanilla-fullstrong' expert brancher.
+    Runs branch-and-bound episodes on the given set of instances,
+    and collects (state, action) pairs from the diving oracle.
 
     Parameters
     ----------
@@ -214,7 +214,7 @@ def collect_samples(instances, out_dir, random, n_jobs, max_samples):
     for p in workers:
         p.terminate()
 
-    class_dist = [f'{100 * x / max_samples:.1f}' for x in action_count]
+    class_dist = [f'{x / max_samples:.2f}' for x in action_count]
     print(f"Sampling completed: (Left, Right): {class_dist}")
     with open(out_dir + "/class_dist.json", "w") as f:
         json.dump([x / max_samples for x in action_count], f)
