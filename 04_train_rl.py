@@ -91,7 +91,7 @@ if __name__ == '__main__':
         train_sols = json.load(f)
 
     valid_batch = [{'path': instance, 'seed': seed, 'sol': valid_sols[instance]['obj_val']}
-                   for instance in valid_instances for seed in range(config['num_valid_seeds'])]
+                   for instance in valid_instances[:20] for seed in range(config['num_valid_seeds'])]
 
 
     def train_batch_generator():
