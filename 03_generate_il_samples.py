@@ -202,7 +202,7 @@ def collect_samples(instances, out_dir, random, n_jobs, max_samples):
                 # sample['filename'] = f'{out_dir}/tmp/sample_{episode}_{sample_count}.pkl'
                 os.rename(sample['filename'], f'{out_dir}/sample_{n_samples}.pkl')
                 print(f"[m {os.getpid()}] episode {sample['episode']}: "
-                      f"{n_samples} / {max_samples} samples written ({in_buffer} in buffer).")
+                      f"{n_samples} / {max_samples} samples written.")
 
                 # stop the episode as soon as
                 # enough samples are collected

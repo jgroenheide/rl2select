@@ -15,15 +15,7 @@ import multiprocessing as mp
 from tqdm import trange
 
 
-class NodeselBFS(scip.Nodesel):
-    def __init__(self):
-        super().__init__()
-
-    def nodeselect(self):
-        return {"selnode": self.model.getBestboundNode()}
-
-
-def solve_instance(in_queue, out_queue, k_sols, mode):
+def solve_instance(in_queue, out_queue, k_sols):
     """
     Worker loop: fetch an instance, run an episode and record samples.
     Parameters
@@ -34,8 +26,6 @@ def solve_instance(in_queue, out_queue, k_sols, mode):
         Output queue in which to put solutions.
     k_sols: int
         Number of solutions to save
-    mode: str
-        String representation of the mode
     """
     while not in_queue.empty():
         instance, seed = in_queue.get()
@@ -48,12 +38,7 @@ def solve_instance(in_queue, out_queue, k_sols, mode):
         # 1: CPU user seconds, 2: wall clock time
         m.setIntParam('timing/clocktype', 1)
         m.setRealParam('limits/time', 300)
-        utilities.init_scip_params(m, seed, static=True)
-
-        # Set the bfs node selector as the most important
-        m.includeNodesel(nodesel=NodeselBFS(),
-                         stdpriority=300000,
-                         memsavepriority=300000)
+        utilities.init_scip_params(m, seed)
 
         # Solve and retrieve solutions
         m.optimize()
@@ -68,17 +53,13 @@ def solve_instance(in_queue, out_queue, k_sols, mode):
         for i, solution in enumerate(solutions):
             m.writeSol(solution, f'{instance[:-3]}-{i + 1}.sol')
 
-        info = {
-            'obj_val': m.getObjVal(),
-            'nnodes': m.getNNodes(),
-            'time': m.getSolvingTime(),
-        }  # return solving statistics
-        out_queue.put({instance: info})
+        # return optimal objective value
+        out_queue.put({instance: m.getObjVal()})
 
         m.freeProb()
 
 
-def collect_solutions(instances, random, n_jobs, k_sols, mode):
+def collect_solutions(instances, random, n_jobs, k_sols):
     """
     Runs branch-and-bound episodes on the given set of instances
     and collects the best k_solutions, which are saved to files.
@@ -93,8 +74,6 @@ def collect_solutions(instances, random, n_jobs, k_sols, mode):
         Number of jobs for parallel sampling.
     k_sols : int
         Number of solutions to save to file
-    mode: str
-        String representation of the mode
     """
     in_queue = mp.Queue()
     out_queue = mp.Queue()
@@ -106,7 +85,7 @@ def collect_solutions(instances, random, n_jobs, k_sols, mode):
     for i in range(n_jobs):
         p = mp.Process(
             target=solve_instance,
-            args=(in_queue, out_queue, k_sols, mode),
+            args=(in_queue, out_queue, k_sols),
             daemon=True)
         workers.append(p)
         p.start()
@@ -153,13 +132,12 @@ if __name__ == '__main__':
     )
     args = parser.parse_args()
 
-    mode = 'BFS+Static'
     rng = np.random.default_rng(args.seed)
     difficulty = config['difficulty'][args.problem]
     for instance_type in ['train', 'valid']:
         instance_dir = f'data/{args.problem}/instances/{instance_type}_{difficulty}'
         instances = glob.glob(instance_dir + '/*.lp')
 
-        obj_values = collect_solutions(instances, rng, args.njobs, args.ksols, mode)
-        with open(instance_dir + f"/instance_solutions_{mode}.json", "w") as f:
+        obj_values = collect_solutions(instances, rng, args.njobs, args.ksols)
+        with open(instance_dir + f"/instance_solutions.json", "w") as f:
             json.dump(obj_values, f)

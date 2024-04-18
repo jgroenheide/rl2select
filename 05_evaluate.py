@@ -5,16 +5,140 @@
 # Usage:                                                                        #
 # python 05_evaluate.py <type> -g <cudaId>                                         #
 # * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * #
-
+import glob
 import os
 import csv
 import json
 import time
 import argparse
-import numpy as np
-import pyscipopt as scip
 import utilities
+import model as ml
+import numpy as np
+import torch as th
+import pyscipopt as scip
+import multiprocessing as mp
+
+from tqdm import trange
 from nodesels import nodesel_policy
+
+
+class NodeselBFS(scip.Nodesel):
+    def __init__(self):
+        super().__init__()
+
+    def nodeselect(self):
+        return {"selnode": self.model.getBestboundNode()}
+
+    def __str__(self):
+        return "BFS"
+
+
+def evaluate(in_queue, out_queue, nodesel, static):
+    """
+    Worker loop: fetch an instance, run an episode and record samples.
+    Parameters
+    ----------
+    in_queue : queue.Queue
+        Input queue from which instances are received.
+    out_queue : queue.Queue
+        Output queue in which to put solutions.
+    """
+    while not in_queue.empty():
+        instance, seed = in_queue.get()
+        th.manual_seed(seed)
+
+        # Initialize SCIP model
+        m = scip.Model()
+        m.hideOutput()
+        m.readProblem(instance)
+
+        # 1: CPU user seconds, 2: wall clock time
+        m.setIntParam('timing/clocktype', 1)
+        m.setRealParam('limits/time', 3600)
+        utilities.init_scip_params(m, seed, static)
+
+        if nodesel is not None:
+            m.includeNodesel(nodesel=nodesel,
+                             name="generic name",
+                             desc='BFS node selector',
+                             stdpriority=300000,
+                             memsavepriority=300000)
+
+        # Solve and retrieve solutions
+        walltime = time.perf_counter()
+        proctime = time.process_time()
+
+        m.optimize()
+
+        walltime = time.perf_counter() - walltime
+        proctime = time.process_time() - proctime
+
+        stime = m.getSolvingTime()
+        nnodes = m.getNNodes()
+        nsols = m.getNBestSolsFound()
+        nlps = m.getNLPs()
+        gap = m.getGap()
+        status = m.getStatus()
+
+        out_queue.put({
+            'instance': instance,
+            'seed': seed,
+            'nnodes': nnodes,
+            'nsols': nsols,
+            'nlps': nlps,
+            'gap': gap,
+            'status': status,
+            'stime': stime,
+            'walltime': walltime,
+            'proctime': proctime,
+        })
+
+        m.freeProb()
+
+
+def collect_evaluation(instances, random, n_jobs, nodesel, static, result_file):
+    """
+    Runs branch-and-bound episodes on the given set of instances
+    with the provided node selector and settings.
+
+    Parameters
+    ----------
+    instances : list
+        Instances to process
+    random: np.random.Generator
+        Random number generator
+    n_jobs : int
+        Number of jobs for parallel sampling.
+    nodesel : object
+        Nodesel for which to evaluate
+    """
+    in_queue = mp.Queue()
+    out_queue = mp.Queue()
+    for instance in instances:
+        in_queue.put([instance, random.integers(2 ** 31)])
+    print(f'{len(instances)} instances on queue.')
+
+    workers = []
+    for i in range(n_jobs):
+        p = mp.Process(
+            target=evaluate,
+            args=(in_queue, out_queue, nodesel, static),
+            daemon=True)
+        workers.append(p)
+        p.start()
+
+    with open(result_file, 'w', newline='') as csvfile:
+        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+        writer.writeheader()
+
+        for _ in trange(len(instances)):
+            answer = out_queue.get()
+            writer.writerow(answer)
+            csvfile.flush()
+
+    for p in workers:
+        p.join()
+
 
 if __name__ == "__main__":
     # read default config file
@@ -29,40 +153,31 @@ if __name__ == "__main__":
         choices=config['problems'],
     )
     parser.add_argument(
+        'instance_type',
+        help='Type of instances to sample',
+        choices=['test', 'transfer'],
+    )
+    parser.add_argument(
+        '-s', '--seed',
+        help='Random generator seed.',
+        default=config['seed'],
+        type=int,
+    )
+    parser.add_argument(
         '-g', '--gpu',
         help='CUDA GPU id (-1 for CPU).',
         default=config['gpu'],
         type=int,
     )
+    parser.add_argument(
+        '-j', '--njobs',
+        help='Number of parallel jobs.',
+        default=1,
+        type=int,
+    )
     args = parser.parse_args()
 
-    time_limit = 3600
-
-    seeds = [0, 1, 2, 3, 4]
-    branching_policies = []
-
-    # SCIP internal brancher baselines
-    internal_branchers = ['relpscost']
-    for brancher in internal_branchers:
-        for seed in seeds:
-            branching_policies.append({
-                'type': 'internal',
-                'name': brancher,
-                'seed': seed,
-            })
-    # GCNN models
-    gcnn_models = ['il', 'mdp', 'tmdp+DFS', 'tmdp+ObjLim']
-    for model in gcnn_models:
-        for seed in seeds:
-            branching_policies.append({
-                'type': 'gcnn',
-                'name': model,
-                'seed': seed,
-            })
-
-    print(f"problem: {args.problem}")
-    print(f"gpu: {args.gpu}")
-    print(f"time limit: {time_limit} s")
+    rng = np.random.default_rng(args.seed)
 
     ### PYTORCH SETUP ###
     if args.gpu == -1:
@@ -72,27 +187,25 @@ if __name__ == "__main__":
         os.environ['CUDA_VISIBLE_DEVICES'] = f'{args.gpu}'
         device = f"cuda:0"
 
-    import torch as th
-    import model as ml
+    # Default: BestEstimate, BFS
+    policies = [None, NodeselBFS()]
 
-    # load and assign pytorch models to policies (share models and update parameters)
-    loaded_models = {}
-    for policy in branching_policies:
-        if policy['type'] == 'gcnn':
-            if policy['name'] not in loaded_models:
-                ### MODEL LOADING ###
-                model = ml.GNNPolicy().to(device)
-                model.load_state_dict(th.load(f"actor/{args.problem}/0/{policy['name']}.pkl"))
-                policy['model'] = model
+    # Learned models
+    for mode in []:
+        model = ml.MLPPolicy().to(device)
+        model.load_state_dict(th.load(f'actor/{args.problem}/{mode}.pkl'))
+        nodesel = nodesel_policy.NodeselPolicy(model, device, NodeselBFS())
+        policies.append(nodesel)
 
-    print("running SCIP...")
+    print(f"problem: {args.problem}")
+    print(f"type: {args.instance_type}")
+    print(f"gpu: {args.gpu}")
 
     fieldnames = [
-        'policy',
-        'seed',
-        'type',
         'instance',
+        'seed',
         'nnodes',
+        'nsols',
         'nlps',
         'gap',
         'status',
@@ -100,10 +213,7 @@ if __name__ == "__main__":
         'walltime',
         'proctime',
     ]
-    os.makedirs('results', exist_ok=True)
 
-    instances = []
-    difficulty = config['difficulty'][args.problem]
     transfer_difficulty = {
         "indset": "1000_4",
         "gisp": "80_0.5",
@@ -113,65 +223,15 @@ if __name__ == "__main__":
         "mknapsack": "100_12",
         "cauctions": "200_1000"
     }[args.problem]
-    instance_dir = f"data/{args.problem}/instances"
-    instances += [{'type': 'test', 'path': instance_dir + f"/test_{difficulty}/instance_{i + 1}.lp"} for i in range(40)]
-    instances += [{'type': 'transfer', 'path': instance_dir + f"/transfer_{transfer_difficulty}/instance_{i + 1}.lp"} for i in range(40)]
+    difficulty = transfer_difficulty if args.instance_type == "transfer" else config['difficulty'][args.problem]
+    instance_dir = f"data/{args.problem}/instances/{args.instance_type}_{difficulty}"
+    instances = glob.glob(instance_dir + '/*.lp')
 
-    result_file = f"{args.problem}_{time.strftime('%Y%m%d-%H%M%S')}.csv"
-    with open(f"results/{result_file}", 'w', newline='') as csvfile:
-        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-        writer.writeheader()
-
-        for instance in instances:
-            print(f"{instance['type']}: {instance['path']}...")
-
-            for policy in branching_policies:
-                th.manual_seed(policy['seed'])
-
-                m = scip.Model()
-                m.setIntParam('display/verblevel', 0)
-                m.readProblem(f"{instance['path']}")
-                utilities.init_scip_params(m, seed=policy['seed'])
-                m.setIntParam('timing/clocktype', 1)  # 1: CPU user seconds, 2: wall clock time
-                m.setRealParam('limits/time', time_limit)
-
-                brancher = nodesel_policy.NodeselPolicy(policy)
-                m.includeBranchrule(
-                    branchrule=brancher,
-                    name=f"{policy['type']}:{policy['name']}",
-                    desc=f"Custom PySCIPOpt branching policy.",
-                    priority=666666, maxdepth=-1, maxbounddist=1)
-
-                walltime = time.perf_counter()
-                proctime = time.process_time()
-
-                m.optimize()
-
-                walltime = time.perf_counter() - walltime
-                proctime = time.process_time() - proctime
-
-                stime = m.getSolvingTime()
-                nnodes = m.getNNodes()
-                nlps = m.getNLPs()
-                gap = m.getGap()
-                status = m.getStatus()
-
-                writer.writerow({
-                    'policy': f"{policy['type']}:{policy['name']}",
-                    'seed': policy['seed'],
-                    'type': instance['type'],
-                    'instance': instance['path'],
-                    'nnodes': nnodes,
-                    'nlps': nlps,
-                    'gap': gap,
-                    'status': status,
-                    'stime': stime,
-                    'walltime': walltime,
-                    'proctime': proctime,
-                })
-
-                csvfile.flush()
-                m.freeProb()
-
-                print(f"  {policy['type']}:{policy['name']} {policy['seed']} --- "
-                      f"{nnodes} nodes - {nlps} lps - {stime:.2f} ({walltime:.2f} wall {proctime:.2f} proc) s. - {status}")
+    timestamp = time.strftime('%Y-%m-%d--%H.%M.%S')
+    running_dir = f'experiments/{args.problem}_{difficulty}/{args.seed}_{timestamp}'
+    os.makedirs(running_dir)
+    for nodesel in policies:
+        for static in [True, False]:
+            static_ = "static_" if static else ""
+            result_file = os.path.join(running_dir, f"{static_}{nodesel}_results.csv")
+            collect_evaluation(instances, rng, args.njobs, nodesel, static, result_file)

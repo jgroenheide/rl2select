@@ -8,12 +8,13 @@
 import os
 import json
 import glob
+import time
+
 import numpy as np
 import torch as th
 import wandb as wb
 import argparse
 
-from datetime import datetime
 from scipy.stats.mstats import gmean
 from utilities import log
 
@@ -106,9 +107,7 @@ if __name__ == '__main__':
     # logger = utilities.configure_logging()
 
     # Create timestamp to save weights
-    current_date = datetime.now().strftime('%Y-%m-%d')
-    current_time = datetime.now().strftime('%H.%M.%S')
-    timestamp = f"{current_date}--{current_time}"
+    timestamp = time.strftime('%Y-%m-%d--%H.%M.%S')
     running_dir = f'experiments/{args.problem}_{difficulty}/{args.seed}_{timestamp}'
     os.makedirs(running_dir, exist_ok=True)
     logfile = os.path.join(running_dir, 'rl_train_log.txt')
@@ -134,7 +133,7 @@ if __name__ == '__main__':
     v_next = agent_pool.start_job(valid_batch, sample_rate=0.0, greedy=True, block_policy=True)
 
     # training loop
-    start_time = datetime.now()
+    start_time = time.time()
     best_tree_size = np.inf
     for epoch in range(config['num_epochs'] + 1):
         log(f'** Epoch {epoch}', logfile)
@@ -226,8 +225,8 @@ if __name__ == '__main__':
         wb.log(epoch_data, step=epoch)
 
         # If time limit is hit, stop process
-        elapsed_time = datetime.now() - start_time
-        if elapsed_time.days >= 6: break
+        elapsed_time = time.time() - start_time
+        if int(elapsed_time / 86400) >= 6: break
 
     log(f"Done. Elapsed time: {elapsed_time}", logfile)
 

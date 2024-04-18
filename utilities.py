@@ -26,7 +26,6 @@ def init_scip_params(model, seed, static=False, presolving=True, heuristics=True
     seed = seed % 2147483648  # SCIP seed range
 
     if static:
-        presolving = False
         heuristics = False
         separating = False
         conflict = False
@@ -36,7 +35,7 @@ def init_scip_params(model, seed, static=False, presolving=True, heuristics=True
     model.setIntParam('randomization/permutationseed', seed)
     model.setIntParam('randomization/randomseedshift', seed)
 
-    # disable separation and restarts
+    # disable separation and restarts during search
     model.setIntParam('separating/maxrounds', 0)
     model.setIntParam('presolving/maxrestarts', 0)
 
@@ -48,7 +47,7 @@ def init_scip_params(model, seed, static=False, presolving=True, heuristics=True
     if not heuristics:
         model.setHeuristics(scip.SCIP_PARAMSETTING.OFF)
 
-    # if asked, disable separating (cuts)
+    # if asked, disable separating in the root (cuts)
     if not separating:
         model.setSeparating(scip.SCIP_PARAMSETTING.OFF)
 

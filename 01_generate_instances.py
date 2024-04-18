@@ -1,7 +1,7 @@
 # * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * #
 # Generates MILP instances of one of the following types:                       #
-# (gisp, indset, setcover, cauctions, fclp or mknapsack).                       #
-# Three directories are created: train, test and transfer.                      #
+# (gisp, indset, setcover, cauctions, cflp or mknapsack).                       #
+# Four directories are created: train, test, valid, and transfer.               #
 # Usage: python 01_generate_instances.py <type> -s <seed>                       #
 # * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * #
 
@@ -282,9 +282,9 @@ def generate_capacitated_facility_location(n_customers, n_facilities, ratio, fil
                    f" <= -{total_demand}\n")
         for i in range(n_customers):
             for j in range(n_facilities):
-                file.write(f"affectation_{i + 1}_{j + 1}: x_{i + 1}_{j + 1} - y_{j + 1} <= 0")
+                file.write(f"affectation_{i + 1}_{j + 1}: x_{i + 1}_{j + 1} - y_{j + 1} <= 0\n")
 
-        file.write("\n\nbinary\n")
+        file.write("\nbinary\n")
         file.write(" ".join([f"y_{j + 1}" for j in range(n_facilities)]))
         file.write("".join([f" x_{i + 1}_{j + 1}"
                              for i in range(n_customers)

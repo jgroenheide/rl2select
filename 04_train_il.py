@@ -17,7 +17,6 @@ import wandb as wb
 import torch_geometric
 
 from utilities import log
-from datetime import datetime
 from torch.utils.data import DataLoader
 
 
@@ -173,11 +172,9 @@ if __name__ == "__main__":
     # --- LOG --- #
 
     # Create timestamp to save weights
-    current_date = datetime.now().strftime('%Y-%m-%d')
-    current_time = datetime.now().strftime('%H.%M.%S')
-    timestamp = f"{current_date}--{current_time}"
+    timestamp = time.strftime('%Y-%m-%d--%H.%M.%S')
     running_dir = f'experiments/{args.problem}_{difficulty}/{args.seed}_{timestamp}'
-    os.makedirs(running_dir, exist_ok=True)
+    os.makedirs(running_dir)
     logfile = os.path.join(running_dir, 'il_train_log.txt')
     wb.init(project="rl2select", config=config)
 
@@ -191,8 +188,8 @@ if __name__ == "__main__":
     log(f"gpu: {args.gpu}", logfile)
     log(f"seed {args.seed}", logfile)
 
-    total_elapsed_time = 0
     best_epoch = 0
+    total_elapsed_time = 0
     for epoch in range(max_epochs + 1):
         log(f'** Epoch {epoch}', logfile)
         start_time = time.time()
@@ -226,3 +223,4 @@ if __name__ == "__main__":
     valid_loss, valid_acc = process(model, valid_loader)
     log(f"PROCESS COMPLETED: BEST MODEL FOUND IN EPOCH {best_epoch}", logfile)
     log(f"BEST VALID LOSS: {valid_loss:0.3f} | BEST VALID ACCURACY: {valid_acc:0.3f}", logfile)
+    th.save(model.state_dict(), f'actor/{args.problem}/il.pkl')
