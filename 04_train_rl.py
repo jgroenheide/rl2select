@@ -1,7 +1,7 @@
 # * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * #
 # Train agent using the reinforcement learning method. User must provide a      #
 # mode in {mdp, tmdp+DFS, tmdp+ObjLim}. The training parameters are read from   #
-# config.json which is overriden by command line inputs, if provided.   #
+# config.json which is overridden by command line inputs, if provided.          #
 # Usage: python 04_train_rl.py <type> -s <seed> -g <cudaId>                     #
 # * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * #
 
@@ -62,8 +62,8 @@ if __name__ == '__main__':
         device = f"cuda:0"
 
     # import torch after gpu configuration
-    from brain import Brain
     from agent import AgentPool
+    from brain import Brain
 
     if args.gpu > -1:
         th.backends.cudnn.deterministic = True
@@ -76,7 +76,6 @@ if __name__ == '__main__':
 
     # data
     difficulty = config['difficulty'][args.problem]
-    maximization_probs = ['cauctions', 'indset', 'mkapsack']
 
     # recover training / validation instances and collect
     # the pre-computed optimal solutions for the instances
@@ -90,14 +89,15 @@ if __name__ == '__main__':
     with open(f"{instance_dir}/instance_solutions.json", "r") as f:
         train_sols = json.load(f)
 
-    valid_batch = [{'path': instance, 'seed': seed, 'sol': valid_sols[instance]['obj_val']}
-                   for instance in valid_instances[:20] for seed in range(config['num_valid_seeds'])]
+    valid_batch = [{'path': instance, 'seed': seed, 'sol': valid_sols[instance]}
+                   for instance in valid_instances[:config['num_valid_instances']]
+                   for seed in range(config['num_valid_seeds'])]
 
 
     def train_batch_generator():
-        eps = -0.1 if args.problem in maximization_probs else 0.1
-        train_batches = [{'path': instance, 'seed': rng.randint(0, 2 ** 31), 'sol': train_sols[instance]['obj_val'] + eps}
-                         for instance in rng.choice(train_instances, size=config['num_episodes_per_epoch'], replace=True)]
+        episodes_per_epoch = int(config['num_valid_instances'] * config['num_valid_seeds'] / config['valid_freq'])
+        train_batches = [{'path': instance, 'seed': rng.randint(0, 2 ** 31), 'sol': train_sols[instance]}
+                         for instance in rng.choice(train_instances, size=episodes_per_epoch, replace=True)]
         while True:
             yield train_batches
 
@@ -130,14 +130,15 @@ if __name__ == '__main__':
 
     # Already start jobs
     train_batch = next(batch_generator)
-    t_next = agent_pool.start_job(train_batch, sample_rate=config['sample_rate'], greedy=False, block_policy=True)
-    v_next = agent_pool.start_job(valid_batch, sample_rate=0.0, greedy=True, block_policy=True)
+    sample_rate = config['sample_rate']
+    t_next = agent_pool.start_job(train_batch, sample_rate, greedy=False, static=True, block_policy=True)
+    v_next = agent_pool.start_job(valid_batch, 0.0, greedy=True, static=True, block_policy=True)
 
     # training loop
     start_time = time.time()
     best_tree_size = np.inf
     for epoch in range(config['num_epochs'] + 1):
-        log(f'** Epoch {epoch}', logfile)
+        log(f"** Epoch {epoch}", logfile)
         epoch_data = {}
 
         # Allow preempted jobs to access policy  [START]
@@ -164,49 +165,50 @@ if __name__ == '__main__':
         # Get a new group of agents into position
         # VALIDATION #
         if ((epoch + 1) % config['valid_freq'] == 0) or ((epoch + 1) == config['num_epochs']):
-            v_next = agent_pool.start_job(valid_batch, sample_rate=0.0, greedy=True, block_policy=True)
+            v_next = agent_pool.start_job(valid_batch, 0.0, greedy=True, static=True, block_policy=True)
         # TRAINING #
         if epoch + 1 < config['num_epochs']:
             train_batch = next(batch_generator)
-            t_next = agent_pool.start_job(train_batch, sample_rate=config['sample_rate'], greedy=False, block_policy=True)
+            t_next = agent_pool.start_job(train_batch, sample_rate, greedy=False, static=True, block_policy=True)
 
         # VALIDATION #  [EVALUATE]
         if (epoch % config['valid_freq'] == 0) or (epoch == config['num_epochs']):
             v_queue.join()  # wait for all validation episodes to be processed
-            log('  validation jobs finished', logfile)
+            log("  validation jobs finished", logfile)
 
-            v_nnodess = [s['info']['nnodes'] for s in v_stats]
+            v_nnodess = [s['info']['nnodes'] for s in v_stats]  # might need to ensure non-zero
             v_lpiterss = [s['info']['lpiters'] for s in v_stats]
             v_times = [s['info']['time'] for s in v_stats]
+            assert np.all(np.array(v_nnodess) > 0)
 
             epoch_data.update({
-                'valid_nnodes_g': gmean(np.asarray(v_nnodess) + 1) - 1,
+                'valid_nnodes_g': gmean(v_nnodess),
                 'valid_nnodes': np.mean(v_nnodess),
                 'valid_nnodes_max': np.amax(v_nnodess),
                 'valid_nnodes_min': np.amin(v_nnodess),
                 'valid_time': np.mean(v_times),
                 'valid_lpiters': np.mean(v_lpiterss),
             })
-            if epoch == 0:
-                v_nnodes_0 = max(epoch_data['valid_nnodes'], 1)
-                v_nnodes_g_0 = max(epoch_data['valid_nnodes_g'], 1)
-            epoch_data.update({
-                'valid_nnodes_norm': epoch_data['valid_nnodes'] / v_nnodes_0,
-                'valid_nnodes_g_norm': epoch_data['valid_nnodes_g'] / v_nnodes_g_0,
-            })
+            # if epoch == 0:
+            #     v_nnodes_0 = max(epoch_data['valid_nnodes'], 1)
+            #     v_nnodes_g_0 = max(epoch_data['valid_nnodes_g'], 1)
+            # epoch_data.update({
+            #     'valid_nnodes_norm': epoch_data['valid_nnodes'] / v_nnodes_0,
+            #     'valid_nnodes_g_norm': epoch_data['valid_nnodes_g'] / v_nnodes_g_0,
+            # })
 
             if epoch_data['valid_nnodes_g'] < best_tree_size:
                 best_tree_size = epoch_data['valid_nnodes_g']
-                log('Best parameters so far (1-shifted geometric mean), saving model.', logfile)
+                log("Best parameters so far (1-shifted geometric mean), saving model.", logfile)
                 brain.save(os.path.join(running_dir, f"best_params_rl-{args.mode}.pkl"))
 
         # TRAINING #
         if epoch < config['num_epochs']:
             t_queue.join()  # wait for all training episodes to be processed
-            log('  training jobs finished', logfile)
+            log("  training jobs finished", logfile)
             log(f"  {len(t_samples)} training samples collected", logfile)
             t_losses = brain.update(t_samples)
-            log('  model parameters were updated', logfile)
+            log("  model parameters were updated", logfile)
 
             t_nnodess = [s['info']['nnodes'] for s in t_stats]
             t_lpiterss = [s['info']['lpiters'] for s in t_stats]
@@ -218,9 +220,9 @@ if __name__ == '__main__':
                 'train_time': np.mean(t_times),
                 'train_lpiters': np.mean(t_lpiterss),
                 'train_nsamples': len(t_samples),
-                'train_loss': t_losses.get('loss', None),
-                'train_reinforce_loss': t_losses.get('reinforce_loss', None),
-                'train_entropy': t_losses.get('entropy', None),
+                'train_loss': t_losses['loss'],
+                'train_reinforce_loss': t_losses['reinforce_loss'],
+                'train_entropy': t_losses['entropy'],
             })
 
         wb.log(epoch_data, step=epoch)

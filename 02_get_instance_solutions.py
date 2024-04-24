@@ -40,20 +40,25 @@ def solve_instance(in_queue, out_queue, k_sols):
         m.setRealParam('limits/time', 300)
         utilities.init_scip_params(m, seed)
 
-        # Solve and retrieve solutions
+        # Solve problem
         m.optimize()
-        solutions = m.getSols()
+
+        if m.getNSols() == 0:
+            print(f"Unsolvable instance: {instance}")
+            out_queue.put(None)
+            continue
 
         # number of primal bound improvements
         # before finding the optimal solution
         # -- m.getNBestSolsFound()
 
-        # save solutions to individual files
-        solutions = solutions[:k_sols]
+        # retrieve and save solutions to individual files
+        solutions = m.getSols()[:k_sols]
         for i, solution in enumerate(solutions):
             m.writeSol(solution, f'{instance[:-3]}-{i + 1}.sol')
 
         # return optimal objective value
+        assert m.getBestSol() is not None
         out_queue.put({instance: m.getObjVal()})
 
         m.freeProb()
@@ -93,7 +98,8 @@ def collect_solutions(instances, random, n_jobs, k_sols):
     solutions = {}
     for _ in trange(len(instances)):
         answer = out_queue.get()
-        solutions.update(answer)
+        if answer is not None:
+            solutions.update(answer)
 
     for p in workers:
         p.join()

@@ -11,15 +11,14 @@
   "batch_valid": 128,
   "patience": -1,
 
-  "time_limit": 1500,
-  "num_episodes_per_epoch": 10,
-  "sample_rate": 0.05,
   "num_agents": 4,
+  "time_limit": 1500,
+  "sample_rate": 0.05,
   "entropy_bonus": 1e-5,
 
   "num_valid_instances": 20,
   "num_valid_seeds": 5,
-  "valid_freq": 50,
+  "valid_freq": 10,
 
   "problems": ["indset", "gisp", "cflp", "fcmcnf", "setcover", "mknapsack", "cauctions"],
   "num_instances": [["train", 4000], ["valid", 1000], ["test", 50], ["transfer", 50]],

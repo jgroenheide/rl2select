@@ -55,9 +55,9 @@ def process(policy, data_loader, optimizer=None):
     with th.set_grad_enabled(training):
         for state, action in data_loader:
             # batch = batch.to(device)
-            target = action.unsqueeze(dim=-1).float().to(device)
-            output = policy(state[0].to(device), state[1].to(device))
-            weight = th.where(action < 0.5, *norm_values).unsqueeze(dim=-1)
+            target = action.float()
+            output = policy(*state).squeeze()
+            weight = th.where(action < 0.5, *norm_values)
 
             # Loss calculation for binary output
             loss = th.nn.BCELoss(weight)(output, target)

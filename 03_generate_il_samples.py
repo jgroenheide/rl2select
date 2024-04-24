@@ -16,7 +16,7 @@ from nodesels.nodesel_oracle import NodeselOracle
 from utilities import log
 
 
-def make_samples(in_queue, out_queue, out_dir):
+def make_samples(in_queue, out_queue, out_dir, max_samples):
     """
     Worker loop: fetch an instance, run an episode and record samples.
 
@@ -24,12 +24,13 @@ def make_samples(in_queue, out_queue, out_dir):
     ----------
     in_queue: mp.Queue
         Instance files from which to collect samples.
-    out_queue : queue.Queue
+    out_queue : mp.SimpleQueue
         Output queue in which to put solutions.
     out_dir : str
         Directory in which to write samples.
     """
-    while True:
+    n_samples = 0
+    while n_samples < max_samples:
         # Fetch an instance...
         episode, instance, seed = in_queue.get()
         instance_id = f'[w {os.getpid()}] episode {episode}'
@@ -75,6 +76,7 @@ def make_samples(in_queue, out_queue, out_dir):
         m.optimize()
         m.freeProb()
 
+        n_samples += oracle.sample_count
         count = max(oracle.sample_count, 1)
         action_count = [f'{action / count:.2f}' for action in oracle.action_count]
         print(f'{instance_id}: {action_count}: {oracle.both_count / count:.2f}')
@@ -140,14 +142,16 @@ def collect_samples(instances, out_dir, random, n_jobs, max_samples):
         orders_queue.put([episode, instance, random.integers(2**31)])
     print(f'{len(instances)} instances on queue.')
 
-    workers = []
-    for i in range(n_jobs):
-        p = mp.Process(
-            target=make_samples,
-            args=(orders_queue, answers_queue, out_dir),
-            daemon=True)
-        workers.append(p)
-        p.start()
+    make_samples(orders_queue, answers_queue, out_dir, max_samples)
+
+    # workers = []
+    # for i in range(n_jobs):
+    #     p = mp.Process(
+    #         target=make_samples,
+    #         args=(orders_queue, answers_queue, out_dir),
+    #         daemon=True)
+    #     workers.append(p)
+    #     p.start()
 
     # start dispatcher
     # dispatcher = mp.Process(
@@ -211,8 +215,8 @@ def collect_samples(instances, out_dir, random, n_jobs, max_samples):
                     break
 
     # stop all workers (hard)
-    for p in workers:
-        p.terminate()
+    # for p in workers:
+    #     p.terminate()
 
     class_dist = [f'{x / max_samples:.2f}' for x in action_count]
     print(f"Sampling completed: (Left, Right): {class_dist}")

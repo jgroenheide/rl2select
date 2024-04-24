@@ -6,20 +6,21 @@ from nodesels.nodesel_baseline import NodeselDFS
 
 
 class NodeselAgent(NodeselDFS):
-    def __init__(self, instance, seed, opt_sol, greedy, sample_rate, requests_queue):
+    def __init__(self, instance, opt_sol, seed, greedy, static, sample_rate, requests_queue):
         super().__init__()
         # self.model = model
-        self.opt_sol = opt_sol
         self.receiver_queue = queue.Queue()
         self.requests_queue = requests_queue
         self.instance = instance
+        self.opt_sol = opt_sol
         self.seed = seed
         self.rng = np.random.default_rng(seed)
         self.greedy = greedy
+        self.static = static
         self.sample_rate = sample_rate
         self.tree_recorder = TreeRecorder() if sample_rate > 0 else None
         self.transitions = []
-        self.reward = 0
+        self.penalty = 0
 
         self.iter_count = 0
         self.info = {
@@ -37,6 +38,10 @@ class NodeselAgent(NodeselDFS):
         return {'selnode': selnode}
 
     def nodecomp(self, node1, node2):
+        GUB = self.model.getUpperbound()
+        if self.static and self.model.isEQ(GUB, self.opt_sol):
+            self.model.interruptSolve()
+
         b, n1, n2, g = utilities.extract_MLP_state(self.model, node1, node2)
         state = (th.tensor(np.concatenate([b, n1, g]), dtype=th.float32),
                  th.tensor(np.concatenate([b, n2, g]), dtype=th.float32))
@@ -46,18 +51,19 @@ class NodeselAgent(NodeselDFS):
         self.requests_queue.put({'state': state,
                                  'greedy': self.greedy,
                                  'receiver': self.receiver_queue})
-        action = self.receiver_queue.get()  # LEFT:0, RIGHT:1, BOTH:2
-        reward = self.model.getNNodes()  # For global tree size
-        reward = self.model.getUpperbound()  # For primal bound improvement
+        action = self.receiver_queue.get()  # LEFT:0, RIGHT:1
 
-        # For optimality-bound reward
+        # self.penalty = self.model.getNNodes()  # For global tree size
+        # self.penalty = self.model.getUpperbound()  # For primal bound improvement
+
+        # For optimality-bound penalty
         focus_node = self.model.getCurrentNode()
         bound = focus_node.getLowerbound()
         sense = self.model.getObjectiveSense()
         if sense == "minimize":
-            reward = (bound <= self.opt_sol) - 1
+            self.penalty += (bound > self.opt_sol)
         elif sense == "maximize":
-            reward = (bound >= self.opt_sol) - 1
+            self.penalty += (bound < self.opt_sol)
         else:
             raise ValueError
 
@@ -69,20 +75,19 @@ class NodeselAgent(NodeselDFS):
                 node_number = focus_node.getNumber()
                 self.transitions.append({'state': state,
                                          'action': action,
-                                         'reward': reward,
+                                         'penalty': self.penalty,
                                          'node_id': node_number,
                                          })
 
-        self.reward = reward
         self.info.update({
-            'nnodes': reward,
+            'nnodes': self.model.getNNodes(),
             'nlpiters': self.model.getNLPIterations(),
             'time': self.model.getSolvingTime()
         })
 
         self.iter_count += 1
         # avoid too large trees during training for stability
-        if (self.iter_count > 50000) and not self.greedy:
+        if self.iter_count > 50000 and not self.greedy:
             self.model.interruptSolve()
 
         return 1 if action > 0.5 else -1
@@ -107,7 +112,7 @@ class TreeRecorder:
         node_number = focus_node.getNumber()
         parent_number = (0 if node_number == 1 else
                          parent_node.getNumber())
-        self.tree[node_number] = {'parent': parent_number}
+        self.tree[node_number] = parent_number
         # Add to corresponding depth group
         depth = focus_node.getDepth()
         if len(self.depth_groups) > depth:
@@ -119,8 +124,8 @@ class TreeRecorder:
         subtree_sizes = {node_number: 0 for node_number in self.tree.keys()}
         for group in self.depth_groups[::-1]:  # [::-1] reverses the list
             for node_number in group:
-                parent_number = self.tree[node_number]['parent']
-                subtree_sizes[node_number] += 2  # shouldn't this be 1?
-                if parent_number > 0:
+                subtree_sizes[node_number] += 1
+                if node_number > 1:
+                    parent_number = self.tree[node_number]
                     subtree_sizes[parent_number] += subtree_sizes[node_number]
         return subtree_sizes

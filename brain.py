@@ -14,7 +14,9 @@ class Brain:
         self.config = config
         self.device = device
         self.actor = ml.MLPPolicy().to(device)
-        self.actor_optimizer = th.optim.Adam(self.actor.parameters(), lr=self.config['lr'])
+        self.actor_optimizer = th.optim.Adam(self.actor.parameters(),
+                                             lr=self.config['lr'],
+                                             maximize=True)
         self.random = np.random.RandomState(seed=self.config['seed'])
 
     def sample_actions(self, requests):
@@ -28,16 +30,11 @@ class Brain:
         for batch in request_loader:
             with th.no_grad():
                 # batch = batch.to(self.device)
-                output = self.actor(*batch['state'])
-                g_actions = th.round(output)
-                e_actions = th.rand_like(output) < output
-                tmp = batch['greedy'].unsqueeze(dim=1)
-                actions += th.where(tmp, g_actions, e_actions)
+                output = self.actor(*batch['state']).squeeze()
+                dist = th.distributions.bernoulli.Bernoulli(output)
+                actions += th.where(batch['greedy'], th.round(output), dist.sample())
 
-            # for action, receiver in zip(actions, receivers):
-            #     receiver.put(action)
-
-        responses = th.concatenate(actions).tolist()
+        responses = th.stack(actions).tolist()
         for receiver, response in zip(receivers, responses):
             receiver.put(response)
 
@@ -55,13 +52,12 @@ class Brain:
         for batch in transition_loader:
             # batch = batch.to(self.device)
             loss = th.tensor([0.0], device=self.device)
-            action_prob = self.actor(*batch['state'])
+            action_prob = self.actor(*batch['state']).squeeze()
             dist = th.distributions.bernoulli.Bernoulli(action_prob)
 
-            # REINFORCE / actor loss
-            returns = batch['returns'].float()
-            actions = batch['action'].float()
-            reinforce_loss = - (returns * dist.log_prob(actions)).sum()
+            # REINFORCE
+            log_probs = dist.log_prob(batch['action'])
+            reinforce_loss = - (batch['returns'] * log_probs).sum()
             reinforce_loss /= n_samples
             loss += reinforce_loss
 

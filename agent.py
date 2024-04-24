@@ -34,7 +34,7 @@ class AgentPool:
         self.requests_queue.put(None)
         self.requests_queue.join()
 
-    def start_job(self, instances, sample_rate, greedy=False, block_policy=False):
+    def start_job(self, instances, sample_rate, greedy=False, static=False, block_policy=False):
         """
         Starts a job. A job is a set of tasks.
         A task consists of an instance and instructions (sample rate, greediness).
@@ -56,6 +56,7 @@ class AgentPool:
             task = {'instance': instance,
                     'sample_rate': sample_rate,
                     'greedy': greedy,
+                    'static': static,
                     'samples': samples,
                     'stats': stats,
                     'policy_access': policy_access
@@ -141,14 +142,15 @@ class Agent(threading.Thread):
             m = scip.Model()
             m.setIntParam('display/verblevel', 0)
             m.readProblem(instance['path'])
-            utilities.init_scip_params(m, seed=instance['seed'])
+            utilities.init_scip_params(m, instance['seed'], task['static'])
             m.setIntParam('timing/clocktype', 2)  # 1: CPU user seconds, 2: wall clock time
             m.setRealParam('limits/time', self.time_limit)
 
             nodesel_agent = NodeselAgent(instance=instance['path'],
-                                         seed=instance['seed'],
                                          opt_sol=instance['sol'],
+                                         seed=instance['seed'],
                                          greedy=task['greedy'],
+                                         static=task['static'],
                                          sample_rate=sample_rate,
                                          requests_queue=self.requests_queue)
 
@@ -176,9 +178,10 @@ class Agent(threading.Thread):
                         transition['returns'] = -subtree_sizes[transition['node_id']] - 1
                 else:
                     assert self.mode == 'mdp'
-                    reward = nodesel_agent.reward
+                    total_penalty = nodesel_agent.penalty
                     for transition in nodesel_agent.transitions:
-                        transition['returns'] = transition['reward'] - reward
+                        # negative return equals penalty before action - total penalty
+                        transition['returns'] = transition['penalty'] - total_penalty
 
             # record episode samples and stats
             task['samples'].extend(nodesel_agent.transitions)

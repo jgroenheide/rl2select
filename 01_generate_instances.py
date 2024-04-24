@@ -309,10 +309,13 @@ def generate_multicommodity_network_flow(graph, n_nodes, n_commodities, filename
     random : np.random.Generator
         A random number generator.
     """
-
+    demands = random.integers(10, 100, size=n_commodities)
     adj_mat = [[0 for _ in range(n_nodes)] for _ in range(n_nodes)]
     incomings = dict([(j, []) for j in range(n_nodes)])
     outgoings = dict([(i, []) for i in range(n_nodes)])
+
+    c = random.integers(12, 50, size=graph.size())
+    f = random.integers(100, 250, size=graph.size())
 
     for i, j in graph.edges:
         c_ij = int(random.uniform(12, 50))  # variable_cost
@@ -332,8 +335,6 @@ def generate_multicommodity_network_flow(graph, n_nodes, n_commodities, filename
             if o_k != d_k and nx.has_path(graph, o_k, d_k):
                 commodities.append((o_k, d_k)); break
 
-    demands = random.integers(10, 100, size=n_commodities)
-
     with open(filename, 'w') as file:
         file.write("minimize\nOBJ: ")
         # demand_k * variable_cost * fraction of demand over edge (i, j) for commodity k
@@ -346,9 +347,9 @@ def generate_multicommodity_network_flow(graph, n_nodes, n_commodities, filename
         for i in range(n_nodes):
             for k in range(n_commodities):
                 # 1 if source, -1 if sink, 0 if else
-                file.write(f"flow_{i + 1}_{k + 1}:" +
+                file.write(f"flow_{i + 1}_{k + 1}: " +
                            " + ".join([f"x_{i + 1}_{j + 1}_{k + 1}" for j in outgoings[i]]) +
-                           " - ".join([f"x_{j + 1}_{i + 1}_{k + 1}" for j in incomings[i]]) +
+                           "".join([f" - x_{j + 1}_{i + 1}_{k + 1}" for j in incomings[i]]) +
                            f" = {int(commodities[k][0] == i) - int(commodities[k][1] == i)}\n")
 
         for i, j in graph.edges:
@@ -757,10 +758,10 @@ if __name__ == '__main__':
 
     rng = np.random.default_rng(args.seed)
     # smaller size for debugging purposes
-    # config['num_instances'] = [('train', 5),
-    #                            ('valid', 2),
-    #                            ('test', 1),
-    #                            ('transfer', 1)]
+    config['num_instances'] = [('train', 5),
+                               ('valid', 2),
+                               ('test', 1),
+                               ('transfer', 1)]
 
     instance_dir = f'data/{args.problem}/instances'
     if args.problem == 'indset':
