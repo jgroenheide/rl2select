@@ -79,25 +79,32 @@ if __name__ == '__main__':
 
     # recover training / validation instances and collect
     # the pre-computed optimal solutions for the instances
-    instance_dir = f'data/{args.problem}/instances/valid_{difficulty}'
-    valid_instances = [str(file) for file in glob.glob(instance_dir + '/instance_*.lp')]
-    with open(f"{instance_dir}/instance_solutions.json", "r") as f:
-        valid_sols = json.load(f)
+    instance_dir = f'data/{args.problem}/instances'
+    train_files = [str(file) for file in glob.glob(
+        instance_dir + f'/train_{difficulty}/*.lp')]
+    valid_files = [str(file) for file in glob.glob(
+        instance_dir + f'/valid_{difficulty}/*.lp')]
 
-    instance_dir = f'data/{args.problem}/instances/train_{difficulty}'
-    train_instances = [str(file) for file in glob.glob(instance_dir + '/instance_*.lp')]
-    with open(f"{instance_dir}/instance_solutions.json", "r") as f:
-        train_sols = json.load(f)
+    if not os.path.exists(instance_dir + f'/obj_values.json'):
+        obj_values = {}
+        with open(instance_dir + f'/train_{difficulty}/instance_solutions.json') as f:
+            obj_values.update(json.load(f))
+        with open(instance_dir + f'/valid_{difficulty}/instance_solutions.json') as f:
+            obj_values.update(json.load(f))
+        with open(instance_dir + f'obj_values.json', 'w') as f:
+            json.dump(obj_values, f)
+    with open(instance_dir + f'/obj_values.json') as f:
+        opt_sols = json.load(f)
 
-    valid_batch = [{'path': instance, 'seed': seed, 'sol': valid_sols[instance]}
-                   for instance in valid_instances[:config['num_valid_instances']]
+    valid_batch = [{'path': instance, 'seed': seed, 'sol': opt_sols[instance]}
+                   for instance in valid_files[:config['num_valid_instances']]
                    for seed in range(config['num_valid_seeds'])]
 
 
     def train_batch_generator():
         episodes_per_epoch = int(config['num_valid_instances'] * config['num_valid_seeds'] / config['valid_freq'])
-        train_batches = [{'path': instance, 'seed': rng.randint(0, 2 ** 31), 'sol': train_sols[instance]}
-                         for instance in rng.choice(train_instances, size=episodes_per_epoch, replace=True)]
+        train_batches = [{'path': instance, 'seed': rng.randint(0, 2 ** 31), 'sol': opt_sols[instance]}
+                         for instance in rng.choice(train_files, size=episodes_per_epoch, replace=True)]
         while True:
             yield train_batches
 
@@ -114,9 +121,9 @@ if __name__ == '__main__':
     logfile = os.path.join(running_dir, 'rl_train_log.txt')
     wb.init(project="rl2select", config=config)
 
-    log(f"training instances: {len(train_instances)}", logfile)
-    log(f"validation instances: {len(valid_instances)}", logfile)
-    # log(f"max epochs: {max_epochs}", logfile)
+    log(f"training instances: {len(train_files)}", logfile)
+    log(f"validation instances: {len(valid_files)}", logfile)
+    log(f"max epochs: {config['num_epochs']}", logfile)
     # log(f"batch size (train): {batch_train}", logfile)
     # log(f"batch_size (valid): {batch_valid}", logfile)
     # log(f"learning rate: {lr}", logfile)
@@ -189,13 +196,6 @@ if __name__ == '__main__':
                 'valid_time': np.mean(v_times),
                 'valid_lpiters': np.mean(v_lpiterss),
             })
-            # if epoch == 0:
-            #     v_nnodes_0 = max(epoch_data['valid_nnodes'], 1)
-            #     v_nnodes_g_0 = max(epoch_data['valid_nnodes_g'], 1)
-            # epoch_data.update({
-            #     'valid_nnodes_norm': epoch_data['valid_nnodes'] / v_nnodes_0,
-            #     'valid_nnodes_g_norm': epoch_data['valid_nnodes_g'] / v_nnodes_g_0,
-            # })
 
             if epoch_data['valid_nnodes_g'] < best_tree_size:
                 best_tree_size = epoch_data['valid_nnodes_g']

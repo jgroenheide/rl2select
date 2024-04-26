@@ -7,8 +7,7 @@ class MLPPolicy(torch.nn.Module):
 
     def __init__(self):
         super().__init__()
-        in_features = 17
-        self.model = torch.nn.Sequential(torch.nn.Linear(in_features, 32),
+        self.model = torch.nn.Sequential(torch.nn.Linear(16, 32),
                                          torch.nn.LeakyReLU(),
                                          torch.nn.Linear(32, 1))
 

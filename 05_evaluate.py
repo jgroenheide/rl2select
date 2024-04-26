@@ -73,6 +73,10 @@ def evaluate(in_queue, out_queue, nodesel, static):
         walltime = time.perf_counter() - walltime
         proctime = time.process_time() - proctime
 
+        # number of primal bound improvements
+        # before finding the optimal solution
+        # -- m.getNBestSolsFound()
+
         stime = m.getSolvingTime()
         nnodes = m.getNNodes()
         nsols = m.getNBestSolsFound()

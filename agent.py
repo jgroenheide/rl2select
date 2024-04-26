@@ -16,7 +16,7 @@ class AgentPool:
     def __init__(self, brain, n_agents, time_limit, mode):
         self.jobs_queue = queue.Queue()
         self.requests_queue = queue.Queue()
-        self.policy_sampler = PolicySampler("Policy Sampler", brain, self.requests_queue)
+        self.policy_sampler = PolicySampler("Policy BaseSampler", brain, self.requests_queue)
         self.agents = [Agent(f"Agent {i}", time_limit, self.jobs_queue, self.requests_queue, mode)
                        for i in range(n_agents)]
 

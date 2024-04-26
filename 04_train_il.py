@@ -1,6 +1,6 @@
 # * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * #
 # Train agent using the imitation learning method of Gasse et al.               #
-# Output is saved to out_dir/<seed>_<timestamp>/best_params_il.pkl              #
+# Output is saved to tmp_dir/<seed>_<timestamp>/best_params_il.pkl              #
 # Usage: python 04_train_il.py <type> -s <seed> -g <cudaId>                     #
 # * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * #
 
@@ -96,6 +96,10 @@ if __name__ == "__main__":
         choices=config['problems']
     )
     parser.add_argument(
+        'dir',
+        help='The k_sols and sampling type directory.',
+    )
+    parser.add_argument(
         '-s', '--seed',
         help='Random generator seed.',
         default=config['seed'],
@@ -107,15 +111,18 @@ if __name__ == "__main__":
         default=config['gpu'],
         type=int,
     )
+    parser.add_argument(
+        '-k', '--ksols',
+        help='Number of solutions to save.',
+        default=config['k'],
+        type=int,
+    )
     args = parser.parse_args()
 
     # --- HYPER PARAMETERS --- #
-    model = "MLP"
     max_epochs = 10000
     batch_train = 32
     batch_valid = 128
-    patience = 500
-    lr = 5e-3
 
     # --- PYTORCH SETUP --- #
     if args.gpu == -1:
@@ -128,10 +135,10 @@ if __name__ == "__main__":
 
     # --- POLICY AND DATA --- #
     difficulty = config['difficulty'][args.problem]
-    sample_dir = f'data/{args.problem}/samples/valid_{difficulty}'
-    valid_files = [str(file) for file in glob.glob(sample_dir + '/sample_*.pkl')]
-    sample_dir = f'data/{args.problem}/samples/train_{difficulty}'
-    train_files = [str(file) for file in glob.glob(sample_dir + '/sample_*.pkl')]
+    sample_dir = f'data/{args.problem}/samples/{args.dir}/valid_{difficulty}'
+    valid_files = [str(file) for file in glob.glob(sample_dir + '/*.pkl')]
+    sample_dir = f'data/{args.problem}/samples/{args.dir}/train_{difficulty}'
+    train_files = [str(file) for file in glob.glob(sample_dir + '/*.pkl')]
 
     file_path = f"{sample_dir}/class_dist.json"
     if os.path.exists(file_path):
@@ -143,14 +150,14 @@ if __name__ == "__main__":
     norm_values = [max(class_dist[1] / class_dist[0], 1),
                    max(class_dist[0] / class_dist[1], 1)]
 
-    if model == "MLP":
+    if config['model'] == "MLP":
         model = ml.MLPPolicy().to(device)
 
         train_data = data.Dataset(train_files)
         valid_data = data.Dataset(valid_files)
         train_loader = DataLoader(train_data, batch_train, shuffle=True)
         valid_loader = DataLoader(valid_data, batch_valid, shuffle=False)
-    elif model == "GNN":
+    elif config['model'] == "GNN":
         model = ml.GNNPolicy().to(device)
 
         train_data = data.GraphDataset(train_files)
@@ -167,7 +174,7 @@ if __name__ == "__main__":
         raise NotImplementedError
 
     optimizer = th.optim.Adam(model.parameters(), lr=config['lr'])
-    scheduler = Scheduler(optimizer, factor=0.2, patience=patience)
+    scheduler = Scheduler(optimizer, factor=0.2, patience=config['patience'])
 
     # --- LOG --- #
 
@@ -182,26 +189,27 @@ if __name__ == "__main__":
     log(f"validation files: {len(valid_files)}", logfile)
     log(f"batch size (train): {batch_train}", logfile)
     log(f"batch_size (valid): {batch_valid}", logfile)
-    log(f"max epochs: {max_epochs}", logfile)
-    log(f"learning rate: {lr}", logfile)
+    log(f"max epochs: {config['num_epochs']}", logfile)
+    log(f"learning rate: {config['lr']}", logfile)
     log(f"problem: {args.problem}", logfile)
-    log(f"gpu: {args.gpu}", logfile)
     log(f"seed {args.seed}", logfile)
+    log(f"gpu: {args.gpu}", logfile)
+    log(f"k_sols: {args.ksols}", logfile)
 
     best_epoch = 0
     total_elapsed_time = 0
-    for epoch in range(max_epochs + 1):
-        log(f'** Epoch {epoch}', logfile)
+    for epoch in range(config['num_epochs'] + 1):
+        log(f"** Epoch {epoch}", logfile)
         start_time = time.time()
 
         # TRAIN
         train_loss, train_acc = process(model, train_loader, optimizer)
-        log(f'Epoch {epoch} | train loss: {train_loss:.3f} | accuracy: {train_acc:.3f}', logfile)
+        log(f"Epoch {epoch} | train loss: {train_loss:.3f} | accuracy: {train_acc:.3f}", logfile)
         wb.log({'train_loss': train_loss, 'train_acc': train_acc}, step=epoch)
 
         # TEST
         valid_loss, valid_acc = process(model, valid_loader)
-        log(f'Epoch {epoch} | valid loss: {valid_loss:.3f} | accuracy: {valid_acc:.3f}', logfile)
+        log(f"Epoch {epoch} | valid loss: {valid_loss:.3f} | accuracy: {valid_acc:.3f}", logfile)
         wb.log({'valid_loss': valid_loss, 'valid_acc': valid_acc}, step=epoch)
 
         elapsed_time = time.time() - start_time
@@ -214,9 +222,9 @@ if __name__ == "__main__":
             th.save(model.state_dict(), f'{running_dir}/best_params_il.pkl')
             best_epoch = epoch
         elif scheduler.step_result == 1:  # NO_PATIENCE
-            log(f'Epoch {epoch} | {scheduler.patience} epochs without improvement, lowering learning rate', logfile)
+            log(f"Epoch {epoch} | {scheduler.patience} epochs without improvement, lowering learning rate", logfile)
         elif scheduler.step_result == 2:  # ABORT
-            log(f'Epoch {epoch} | no improvements for {2 * scheduler.patience} epochs, early stopping', logfile)
+            log(f"Epoch {epoch} | no improvements for {2 * scheduler.patience} epochs, early stopping", logfile)
             break
 
     model.load_state_dict(th.load(f'{running_dir}/best_params_il.pkl'))

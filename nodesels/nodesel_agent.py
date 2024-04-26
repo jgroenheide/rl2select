@@ -81,7 +81,7 @@ class NodeselAgent(NodeselDFS):
 
         self.info.update({
             'nnodes': self.model.getNNodes(),
-            'nlpiters': self.model.getNLPIterations(),
+            'lpiters': self.model.getNLPIterations(),
             'time': self.model.getSolvingTime()
         })
 

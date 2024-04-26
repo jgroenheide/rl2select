@@ -175,7 +175,8 @@ def generate_indset(graph, filename):
             inequalities.add((node,))
 
     with open(filename, 'w') as lp_file:
-        lp_file.write("maximize\nOBJ: " + " + ".join([f"x{node}" for node in graph]) + "\n")
+        lp_file.write("maximize\nOBJ: ")
+        lp_file.write(" + ".join([f"x{node}" for node in graph]) + "\n")
         lp_file.write("\nsubject to\n")
         for count, group in enumerate(inequalities):
             lp_file.write(f"C{count}: " + " + ".join([f"x{node}" for node in sorted(group)]) + " <= 1\n")
@@ -207,8 +208,8 @@ def generate_general_indset(graph, filename, alphaE2, random):
         lp_file.write("\n\nsubject to\n")
         for count, (node1, node2) in enumerate(graph.edges):
             y = f" - y{node1}_{node2}" if (node1, node2) in E2 else ""
-            lp_file.write(f"C{count + 1}: x{node1} + x{node2}" + y + " <= 1")
-        lp_file.write("\n\nbinary\n" + " ".join([f"x{node}" for node in graph]))
+            lp_file.write(f"C{count + 1}: x{node1} + x{node2}" + y + " <= 1\n")
+        lp_file.write("\nbinary\n" + " ".join([f"x{node}" for node in graph]))
         lp_file.write("".join([f" y{node1}_{node2}" for node1, node2 in E2]))
 
 def generate_capacitated_facility_location(n_customers, n_facilities, ratio, filename, random):
@@ -758,7 +759,7 @@ if __name__ == '__main__':
 
     rng = np.random.default_rng(args.seed)
     # smaller size for debugging purposes
-    config['num_instances'] = [('train', 5),
+    config['num_instances'] = [('train', 10),
                                ('valid', 2),
                                ('test', 1),
                                ('transfer', 1)]

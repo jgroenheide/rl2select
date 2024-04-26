@@ -1,14 +1,10 @@
 1. Generate instances | (data/{problem}/instances/{instance_type}_{difficulty}/instance_*.lp)
-   (a) (Option) Use only one dataset for testing (split into train and validation later)
 2. Generate solutions | (data/{problem}/instances/{instance_type}_{difficulty}/instance_*-*.sol)
-   (a) Remove instances with less than k solutions.
-   (b) (Option) Combine generation and solving step.
+   (a) Remove infeasible instances and instances with less than 100 nodes explored.
 3. Generate samples   | (data/{problem}/samples/{instance_type}_{difficulty}/sample_*.pkl)
    (a) For each [instance, solutions] generate [state, action] pairs from the oracle.
    (b) The state should include both nodes of the comparison.
-   (c) The action should be from [-1, 0, 1] for left, no preference, right.
-   (b) Samples should encode both the GNN and the MLP state.
-   (c) (Option) When 'both', save the node comparison as '0'.
+   (c) The action should be from [0, 1] for left, right.
    (d) (Option) Choose opposite of default nodesel.
 4. Perform training   | (experiments/{problem}_{difficulty}/{seed}_{timestamp}/best_params_*-*.pkl)
    Train IL
@@ -34,13 +30,8 @@ In He et al. they calculate this for every open node.
 In Yilmaz et al. they calculate this for the child nodes.
 => When we only consider children, the branching and tree features will largely overlap.
    the state can therefore best be described from the parent's perspective.
-   However, this eliminates the possibility of using the model as a critic in actor-critic RL
 in Labassi et al. they calculate this for the two nodes of a nodecomp call.
 => [state, action] pairs must include both nodes of the comparison
-
-For simplicity, generality, and extendability, it's probably best to make all models compare between two nodes,
-and then call getBestChild() as the node selection policy to compare only the children.
-
 
 Subtree size is not a good indication of decision quality, because good decisions can have large subtrees while bad decisions
 can have small subtrees. Instead: Global tree size, Primal bound improvement, Optimality-Bound difference.
@@ -56,3 +47,103 @@ Only the order of nodes with a lower bound *between* the incumbent and the optim
 But also should not be explored because the optimal solution value can be found without them.
 This is why primal difficult problems are more interesting for node selection, because once the optimal solution value is found,
 the decision-making process is trivialised to solving all remaining nodes, which cannot be improved by node selection.
+
+Combining instance generation and solving allows more control over the instances that are saved.
+   Infeasible instances need to either be removed, or ignored during training.
+   Instances that are solved in the root node by presolve can't be sampled from.
+Idea: Dispatcher generates instances and adds them to the queue with a random seed attached.
+      Solvers take the generated instances from the queue and solve them as usual.
+      Collector takes the solved instances from tmp, renames and writes their solutions.
+--
+      Train, valid, and test can all use the same dispatcher. Collector should apply the correct name.
+      Transfer instances would require a new dispatcher to be started. Can be in the same run.
+      Writing solutions is done before name is changed. Send the model and write solutions in the collector.
+Issue: Instances must be moved to the correct folder based on instance_type and difficulty, but difficulty is not available.
+        - Encode the difficulty in the tmp folder name, or
+        - use the hard-coded config file difficulties
+
+```python
+import importlib
+
+gen = importlib.import_module('01_generate_instances.py')
+
+
+def dispatcher(orders_queue, problem, random, transfer=False):
+    out_dir = f'data/{problem}/instances/tmp_'
+
+    edge_prob = 0.6
+    drop_rate = 0.5
+    n_nodes = 80 if transfer else 60
+
+    episode = 0
+    while True:
+        filename = os.path.join(out_dir, f'instance_{episode}.lp')
+        graph = gen.Graph.erdos_renyi(n_nodes, edge_prob, random)
+        gen.generate_general_indset(graph, filename, drop_rate, random)
+        # blocks the process until a free slot in the queue is available
+        orders_queue.put([episode, filename, random.integers(2 ** 31)])
+        episode += 1
+
+
+def collector(problem, config, n_jobs, k_sols, random):
+    orders_queue = mp.Queue(maxsize=2 * n_jobs)
+    answers_queue = mp.SimpleQueue()
+
+    workers = []
+    for i in range(n_jobs):
+        p = mp.Process(
+            target=solver,
+            args=(orders_queue, answers_queue, out_dir),
+            daemon=True)
+        workers.append(p)
+        p.start()
+
+    dispatcher = mp.Process(
+        target=dispatcher,
+        args=(orders_queue, problem, random),
+        daemon=True)
+    dispatcher.start()
+
+    stats = {}
+    for instance_type, num_instances in config['num_instances']:
+        if instance_type == 'transfer':
+            dispatcher.terminate()
+            orders_queue = mp.Queue(maxsize=2 * n_jobs)
+            answers_queue = mp.SimpleQueue()
+            dispatcher = mp.Process(
+                target=dispatcher,
+                args=(orders_queue, problem, random, True),
+                daemon=True)
+            dispatcher.start()
+        n_instances = 0
+        while n_instances < num_instances:
+            instance = answers_queue.get()
+            tmp_dir = os.path.dirname(instance['filename'])
+            instance_dir = tmp_dir.replace('tmp', instance_type)
+            filename = instance_dir + f'/instance_{n_instances}.lp'
+            os.rename(instance['filename'], filename)
+
+            # retrieve and save solutions to individual files
+            m = instance['model']
+            solutions = m.getSols()[:k_sols]
+            for i, solution in enumerate(solutions):
+                m.writeSol(solution, f'{filename[:-3]}-{i + 1}.sol')
+            stats.update({filename: m.getObjVal(), })
+            m.freeProb()
+
+    # stop all workers (hard)
+    dispatcher.terminate()
+    for p in workers:
+        p.terminate()
+```
+
+Experiments:
+IL:
+- K sols: [1, 2, 5, 10]
+- Problem: [GISP10, SSCFLP]
+- Sampler: [Weighted, Double, Random]
+    Total: 24 Experiments
+           24 Sample sets
+RL:
+- Problem: [GISP, CFLP]
+- 

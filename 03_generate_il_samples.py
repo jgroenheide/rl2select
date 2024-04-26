@@ -6,6 +6,7 @@
 import os
 import glob
 import json
+import extract
 import argparse
 import utilities
 import numpy as np
@@ -13,10 +14,9 @@ import pyscipopt as scip
 import multiprocessing as mp
 
 from nodesels.nodesel_oracle import NodeselOracle
-from utilities import log
 
 
-def make_samples(in_queue, out_queue, out_dir, max_samples):
+def make_samples(in_queue, out_queue, tmp_dir, k_sols, sampling):
     """
     Worker loop: fetch an instance, run an episode and record samples.
 
@@ -24,20 +24,21 @@ def make_samples(in_queue, out_queue, out_dir, max_samples):
     ----------
     in_queue: mp.Queue
         Instance files from which to collect samples.
-    out_queue : mp.SimpleQueue
+    out_queue : mp.Queue
         Output queue in which to put solutions.
-    out_dir : str
+    tmp_dir : str
         Directory in which to write samples.
     """
     n_samples = 0
+    max_samples = 10000
     while n_samples < max_samples:
         # Fetch an instance...
         episode, instance, seed = in_queue.get()
         instance_id = f'[w {os.getpid()}] episode {episode}'
-        print(f'{instance_id}: Processing instance \'{instance}\'...')
+        print(f"{instance_id}: Processing instance '{instance}'...")
 
         # Retrieve available solution files
-        solution_files = glob.glob(f'{instance[:-3]}-*.sol')
+        solution_files = sorted(glob.glob(f'{instance[:-3]}-*.sol'), key=len)[:k_sols]
         print(f"{instance_id}: Retrieved {len(solution_files)} solutions")
         if len(solution_files) == 0:
             print("ABORT: No solutions")
@@ -58,7 +59,16 @@ def make_samples(in_queue, out_queue, out_dir, max_samples):
             solution = m.readSolFile(solution_file)
             solutions.append(solution)
 
-        oracle = NodeselOracle(solutions, episode, out_queue, out_dir)
+        if sampling == 'Weighted':
+            sampler = extract.BaseSampler(episode, tmp_dir, out_queue)
+        elif sampling == 'Random':
+            sampler = extract.RandomSampler(episode, tmp_dir, out_queue)
+        elif sampling == 'Double':
+            sampler = extract.DoubleSampler(episode, tmp_dir, out_queue)
+        else:
+            raise ValueError
+
+        oracle = NodeselOracle(sampler, solutions)  # , episode, out_queue, tmp_dir)
 
         m.includeNodesel(nodesel=oracle,
                          name='nodesel_oracle',
@@ -67,32 +77,30 @@ def make_samples(in_queue, out_queue, out_dir, max_samples):
                          memsavepriority=999999)
 
         out_queue.put({
-            'type': 'start',
+            'type': "start",
             'episode': episode,
-            'instance': instance,
-            'seed': seed,
-        })
+        }, False)
 
         m.optimize()
         m.freeProb()
 
-        n_samples += oracle.sample_count
-        count = max(oracle.sample_count, 1)
-        action_count = [f'{action / count:.2f}' for action in oracle.action_count]
-        print(f'{instance_id}: {action_count}: {oracle.both_count / count:.2f}')
-        print(f'{instance_id}: Process completed, {oracle.sample_count} samples')
+        n_samples += sampler.sample_count
+        count = max(sampler.sample_count, 1)
+        print(f"{instance_id}: {[f'{action / count:.2f}' for action in sampler.action_count]}")
+        print(f"{instance_id}: Process completed, {sampler.sample_count} samples")
 
         out_queue.put({
-            'type': 'done',
+            'type': "done",
             'episode': episode,
-            'instance': instance,
-            'seed': seed,
-        })
+            'action_count': sampler.action_count,
+            'sample_count': sampler.sample_count,
+        }, False)
 
 
 def send_orders(orders_queue, instances, random):
     """
-    Continuously send sampling orders to workers (relies on limited queue capacity).
+    Dispatcher: Continuously send sampling orders to workers.
+                Relies on limited queue capacity.
 
     Parameters
     ----------
@@ -103,7 +111,6 @@ def send_orders(orders_queue, instances, random):
     random: np.random.Generator
         Random number generator
     """
-
     episode = 0
     while True:
         instance = random.choice(instances)
@@ -112,7 +119,7 @@ def send_orders(orders_queue, instances, random):
         episode += 1
 
 
-def collect_samples(instances, out_dir, random, n_jobs, max_samples):
+def collect_samples(instances, sample_dir, n_jobs, k_sols, max_samples, sampling, random):
     """
     Runs branch-and-bound episodes on the given set of instances,
     and collects (state, action) pairs from the diving oracle.
@@ -121,51 +128,55 @@ def collect_samples(instances, out_dir, random, n_jobs, max_samples):
     ----------
     instances : list
         Instance files from which to collect samples.
-    out_dir : str
+    sample_dir : str
         Directory in which to write samples.
-    random: np.random.Generator
-        Random number generator
     n_jobs : int
         Number of jobs for parallel sampling.
     max_samples : int
         Number of samples to collect.
+    random: np.random.Generator
+        Random number generator
     """
-    os.makedirs(out_dir, exist_ok=True)
+    tmp_dir = sample_dir + '/tmp'
+    os.makedirs(tmp_dir, exist_ok=True)
 
     # start workers
-    # orders_queue = mp.Queue(maxsize=2*n_jobs)
-    answers_queue = mp.SimpleQueue()
+    orders_queue = mp.Queue(2*n_jobs)
+    answers_queue = mp.Queue()
 
     # temp solution for limited threads
-    orders_queue = mp.Queue()
-    for episode, instance in enumerate(instances):
-        orders_queue.put([episode, instance, random.integers(2**31)])
-    print(f'{len(instances)} instances on queue.')
+    # orders_queue = mp.Queue()
+    # for episode, instance in enumerate(instances):
+    #     print(f"entering instance {instance} into the queue")
+    #     orders_queue.put([episode, instance, random.integers(2**31)])
+    # print(f"{len(instances)} instances on queue.")
+    #
+    # make_samples(orders_queue, answers_queue, tmp_dir, max_samples)
 
-    make_samples(orders_queue, answers_queue, out_dir, max_samples)
-
-    # workers = []
-    # for i in range(n_jobs):
-    #     p = mp.Process(
-    #         target=make_samples,
-    #         args=(orders_queue, answers_queue, out_dir),
-    #         daemon=True)
-    #     workers.append(p)
-    #     p.start()
+    workers = []
+    for i in range(n_jobs):
+        p = mp.Process(
+            target=make_samples,
+            args=(orders_queue, answers_queue, tmp_dir, k_sols, sampling),
+            daemon=True)
+        workers.append(p)
+        p.start()
 
     # start dispatcher
-    # dispatcher = mp.Process(
-    #     target=send_orders,
-    #     args=(orders_queue, instances, random),
-    #     daemon=True)
-    # dispatcher.start()
-    # print(f"[m {os.getpid()}] dispatcher started...")
+    dispatcher = mp.Process(
+        target=send_orders,
+        args=(orders_queue, instances, random),
+        daemon=True)
+    dispatcher.start()
+    print(f"[m {os.getpid()}] dispatcher started...")
 
     # record answers and write samples
     buffer = {}
     episode_i = 0
     n_samples = 0
     in_buffer = 0
+
+    sample_count = 0
     action_count = [0, 0]
     while n_samples < max_samples:
         sample = answers_queue.get()
@@ -181,8 +192,8 @@ def collect_samples(instances, out_dir, random, n_jobs, max_samples):
                 in_buffer += 1
 
         # early stop dispatcher (hard)
-        if in_buffer + n_samples >= max_samples:  # and dispatcher.is_alive():
-            # dispatcher.terminate()
+        if in_buffer + n_samples >= max_samples and dispatcher.is_alive():  #
+            dispatcher.terminate()
             print(f"[m {os.getpid()}] dispatcher stopped...")
 
         # if current_episode object is not empty...
@@ -196,17 +207,19 @@ def collect_samples(instances, out_dir, random, n_jobs, max_samples):
                 if sample['type'] == 'done':
                     # move to next episode
                     del buffer[episode_i]
+
+                    action_count[0] += sample['action_count'][0]
+                    action_count[1] += sample['action_count'][1]
+                    sample_count += sample['sample_count']
+                    print(f"[m {os.getpid()}] episode {sample['episode']}: "
+                          f"{sample_count} / {max_samples} samples written.")
                     episode_i += 1
                     break
 
                 # else write sample
                 in_buffer -= 1
                 n_samples += 1
-                action_count[sample['action']] += 1
-                # sample['filename'] = f'{out_dir}/tmp/sample_{episode}_{sample_count}.pkl'
-                os.rename(sample['filename'], f'{out_dir}/sample_{n_samples}.pkl')
-                print(f"[m {os.getpid()}] episode {sample['episode']}: "
-                      f"{n_samples} / {max_samples} samples written.")
+                os.rename(sample['filename'], f'{sample_dir}/sample_{n_samples}.pkl')
 
                 # stop the episode as soon as
                 # enough samples are collected
@@ -215,18 +228,18 @@ def collect_samples(instances, out_dir, random, n_jobs, max_samples):
                     break
 
     # stop all workers (hard)
-    # for p in workers:
-    #     p.terminate()
+    for p in workers:
+        p.terminate()
 
-    class_dist = [f'{x / max_samples:.2f}' for x in action_count]
+    class_dist = [f'{x / sample_count:.2f}' for x in action_count]
     print(f"Sampling completed: (Left, Right): {class_dist}")
-    with open(out_dir + "/class_dist.json", "w") as f:
-        json.dump([x / max_samples for x in action_count], f)
+    with open(sample_dir + '/class_dist.json', "w") as f:
+        json.dump([x / sample_count for x in action_count], f)
 
 
 if __name__ == '__main__':
     # read default config file
-    with open('config.json', 'r') as f:
+    with open('config.json') as f:
         config = json.load(f)
 
     parser = argparse.ArgumentParser()
@@ -241,10 +254,21 @@ if __name__ == '__main__':
         choices=['train', 'valid'],
     )
     parser.add_argument(
+        'sampling_type',
+        help='Type of instances to sample',
+        choices=['Weighted', 'Random', 'Double'],
+    )
+    parser.add_argument(
         '-s', '--seed',
         help='Random generator seed.',
         type=utilities.valid_seed,
         default=config['seed'],
+    )
+    parser.add_argument(
+        '-k', '--ksols',
+        help='Number of solutions to save.',
+        default=config['k'],
+        type=int,
     )
     parser.add_argument(
         '-j', '--njobs',
@@ -258,18 +282,16 @@ if __name__ == '__main__':
         type=int,
         default=10,
     )
-
     args = parser.parse_args()
 
+    rng = np.random.default_rng(args.seed)
     difficulty = config['difficulty'][args.problem]
     instance_dir = f'data/{args.problem}/instances/{args.instance_type}_{difficulty}'
-    sample_dir = f'data/{args.problem}/samples/{args.instance_type}_{difficulty}'
-    os.makedirs(sample_dir)  # create output directory, throws an error if it already exists
-    # logfile = os.path.join(sample_dir, 'sample_log.txt')
+    sample_dir = f'data/{args.problem}/samples/k={args.ksols}_{args.sampling_type}'
 
-    instances = glob.glob(instance_dir + '/*.lp')
+    instances = glob.glob(instance_dir + f'/*.lp')
     num_samples = args.ratio * len(instances)
-    log(f"{len(instances)} {args.instance_type} instances for {num_samples} samples")
-
-    rng = np.random.default_rng(args.seed)
-    collect_samples(instances, sample_dir, rng, args.njobs, num_samples)
+    out_dir = sample_dir + f'/{args.instance_type}_{difficulty}'
+    os.makedirs(out_dir)  # create output directory, throws an error if it already exists
+    print(f"{len(instances)} {args.instance_type} instances for {num_samples} {args.sampling_type} samples")
+    collect_samples(instances, out_dir, args.njobs, args.ksols, num_samples, args.sampling_type, rng)

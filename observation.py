@@ -166,8 +166,8 @@ def branching_features(model, node, buffer=None):
     var_sol = branch_var.getLPSol()
     var_rootsol = branch_var.getRootSol()
 
-    bound_lp_diff = branchbound - var_sol  # branching features
-    root_lp_diff = var_rootsol - var_sol  # branching features
+    bound_lp_diff = branchbound - var_sol
+    root_lp_diff = var_rootsol - var_sol
 
     pseudo_cost = model.getVarPseudocost(branch_var, branch_dir)
     n_inferences = (model.getVarAvgInferences(branch_var, 1)
@@ -190,7 +190,7 @@ def node_features(model, node, buffer=None):
         # 'type_sibling': node.getType() == 1,
         # 'type_leaf': node.getType() == 2,
         'relative_depth': node.getDepth(),
-        'lower_bound': node.getLowerbound(),
+        'node_lb': node.getLowerbound(),
         'estimate': node.getEstimate(),
         'is_prio_child': node == model.getPrioChild(),
     }
@@ -205,7 +205,6 @@ def global_features(model, buffer=None):
     gap_is_infinite = model.isInfinity(integrality_gap)
 
     return {
-        'max_depth': model.getMaxDepth(),
         'global_lb': global_lb,
         'global_ub': global_ub,
         'ub_is_infinite': ub_is_infinite,
