@@ -30,10 +30,10 @@ def make_samples(in_queue, out_queue, tmp_dir, k_sols, sampling):
         Directory in which to write samples.
     """
     n_samples = 0
-    max_samples = 10000
+    max_samples = 5000
     while n_samples < max_samples:
         # Fetch an instance...
-        episode, instance, seed = in_queue.get()
+        episode, instance, seed = in_queue.get(timeout=10)
         instance_id = f'[w {os.getpid()}] episode {episode}'
         print(f"{instance_id}: Processing instance '{instance}'...")
 
@@ -68,7 +68,7 @@ def make_samples(in_queue, out_queue, tmp_dir, k_sols, sampling):
         else:
             raise ValueError
 
-        oracle = NodeselOracle(sampler, solutions)  # , episode, out_queue, tmp_dir)
+        oracle = NodeselOracle(sampler, solutions)
 
         m.includeNodesel(nodesel=oracle,
                          name='nodesel_oracle',
@@ -95,6 +95,7 @@ def make_samples(in_queue, out_queue, tmp_dir, k_sols, sampling):
             'action_count': sampler.action_count,
             'sample_count': sampler.sample_count,
         }, False)
+        print(f"{instance_id}: Still alive :)")
 
 
 def send_orders(orders_queue, instances, random):
@@ -145,12 +146,8 @@ def collect_samples(instances, sample_dir, n_jobs, k_sols, max_samples, sampling
     answers_queue = mp.Queue()
 
     # temp solution for limited threads
-    # orders_queue = mp.Queue()
-    # for episode, instance in enumerate(instances):
-    #     print(f"entering instance {instance} into the queue")
-    #     orders_queue.put([episode, instance, random.integers(2**31)])
-    # print(f"{len(instances)} instances on queue.")
-    #
+    # orders_queue = [(episode, instance, random.integers(2**31))
+    #                  for episode, instance in enumerate(instances)]
     # make_samples(orders_queue, answers_queue, tmp_dir, max_samples)
 
     workers = []
@@ -179,7 +176,7 @@ def collect_samples(instances, sample_dir, n_jobs, k_sols, max_samples, sampling
     sample_count = 0
     action_count = [0, 0]
     while n_samples < max_samples:
-        sample = answers_queue.get()
+        sample = answers_queue.get(timeout=10)
 
         # add received sample to buffer
         if sample['type'] == 'start':
