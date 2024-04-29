@@ -145,7 +145,7 @@ if __name__ == "__main__":
         # collect the pre-computed class distribution of the samples
         with open(file_path, "r") as f:
             class_dist = json.load(f)
-    else: class_dist = [0.85, 0.15]
+    else: class_dist = [0.5, 0.5]
     # norm_values = [1 / x for x in class_dist]
     norm_values = [max(class_dist[1] / class_dist[0], 1),
                    max(class_dist[0] / class_dist[1], 1)]

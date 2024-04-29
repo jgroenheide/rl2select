@@ -36,9 +36,9 @@ class BaseSampler:
 
 
 class RandomSampler(BaseSampler):
-    def __init__(self, episode, tmp_dir, out_queue):
+    def __init__(self, episode, tmp_dir, out_queue, seed):
         super().__init__(episode, tmp_dir, out_queue)
-        self.random = np.random.default_rng(0)
+        self.random = np.random.default_rng(seed)
 
     def create_sample(self, state0, state1, action):
         if self.random.random() < 0.5:

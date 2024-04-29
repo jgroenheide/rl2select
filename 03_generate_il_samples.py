@@ -60,7 +60,7 @@ def make_samples(in_queue, out_queue, tmp_dir, k_sols, sampling):
         if sampling == 'Weighted':
             sampler = extract.BaseSampler(episode, tmp_dir, out_queue)
         elif sampling == 'Random':
-            sampler = extract.RandomSampler(episode, tmp_dir, out_queue)
+            sampler = extract.RandomSampler(episode, tmp_dir, out_queue, seed)
         elif sampling == 'Double':
             sampler = extract.DoubleSampler(episode, tmp_dir, out_queue)
         else:
