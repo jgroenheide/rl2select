@@ -6,12 +6,12 @@
 import os
 import glob
 import json
-import extract
 import argparse
+import extract
 import utilities
+import multiprocessing as mp
 import numpy as np
 import pyscipopt as scip
-import multiprocessing as mp
 
 from nodesels.nodesel_oracle import NodeselOracle
 
@@ -146,6 +146,8 @@ def collect_samples(instances, sample_dir, n_jobs, k_sols, max_samples, sampling
     # removes the need for the dispatcher
     # orders_queue = [(episode, instance, random.integers(2**31))
     #                 for episode, instance in enumerate(instances)]
+    # removes the need for the workers
+    # make_samples(orders_queue, answers_queue, tmp_dir, k_sols, sampling)
 
     workers = []
     for i in range(n_jobs):

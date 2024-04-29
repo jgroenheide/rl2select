@@ -7,13 +7,16 @@ import os
 import glob
 import json
 import queue
-import extract
 import argparse
+import extract
 import utilities
 import numpy as np
 import pyscipopt as scip
 
 from nodesels.nodesel_oracle import NodeselOracle
+
+import faulthandler
+faulthandler.enable()
 
 
 def make_samples(episode, instance, seed, tmp_dir, k_sols, sampling):
@@ -73,7 +76,7 @@ def make_samples(episode, instance, seed, tmp_dir, k_sols, sampling):
         'episode': episode,
         'action_count': sampler.action_count,
         'sample_count': sampler.sample_count,
-    }, False)
+    })
     return out_queue
 
 
