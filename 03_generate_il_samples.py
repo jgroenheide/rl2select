@@ -29,9 +29,7 @@ def make_samples(in_queue, out_queue, tmp_dir, k_sols, sampling):
     tmp_dir : str
         Directory in which to write samples.
     """
-    n_samples = 0
-    max_samples = 5000
-    while n_samples < max_samples:
+    while True:
         # Fetch an instance...
         episode, instance, seed = in_queue.get(timeout=10)
         instance_id = f'[w {os.getpid()}] episode {episode}'
@@ -84,7 +82,6 @@ def make_samples(in_queue, out_queue, tmp_dir, k_sols, sampling):
         m.optimize()
         m.freeProb()
 
-        n_samples += sampler.sample_count
         count = max(sampler.sample_count, 1)
         print(f"{instance_id}: {[f'{action / count:.2f}' for action in sampler.action_count]}")
         print(f"{instance_id}: Process completed, {sampler.sample_count} samples")
@@ -146,9 +143,9 @@ def collect_samples(instances, sample_dir, n_jobs, k_sols, max_samples, sampling
     answers_queue = mp.Queue()
 
     # temp solution for limited threads
+    # removes the need for the dispatcher
     # orders_queue = [(episode, instance, random.integers(2**31))
-    #                  for episode, instance in enumerate(instances)]
-    # make_samples(orders_queue, answers_queue, tmp_dir, max_samples)
+    #                 for episode, instance in enumerate(instances)]
 
     workers = []
     for i in range(n_jobs):
@@ -268,12 +265,6 @@ if __name__ == '__main__':
         type=int,
     )
     parser.add_argument(
-        '-j', '--njobs',
-        help='Number of parallel jobs.',
-        type=int,
-        default=1,
-    )
-    parser.add_argument(
         '-r', '--ratio',
         help='Samples per instance ratio',
         type=int,
@@ -283,9 +274,9 @@ if __name__ == '__main__':
 
     rng = np.random.default_rng(args.seed)
     difficulty = config['difficulty'][args.problem]
-    instance_dir = f'data/{args.problem}/instances/{args.instance_type}_{difficulty}'
     sample_dir = f'data/{args.problem}/samples/k={args.ksols}_{args.sampling_type}'
 
+    instance_dir = f'data/{args.problem}/instances/{args.instance_type}_{difficulty}'
     instances = glob.glob(instance_dir + f'/*.lp')
     num_samples = args.ratio * len(instances)
     out_dir = sample_dir + f'/{args.instance_type}_{difficulty}'
