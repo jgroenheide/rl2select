@@ -35,6 +35,8 @@ def make_samples(episode, instance, seed, tmp_dir, k_sols, sampling):
     # Initialize SCIP model
     m = scip.Model()
     m.hideOutput()
+    os.remove('samples_log.txt')
+    m.setLogfile('samples_log.txt')
     m.readProblem(instance)
 
     # 1: CPU user seconds, 2: wall clock time
