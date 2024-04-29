@@ -173,12 +173,6 @@ if __name__ == '__main__':
         type=int,
     )
     parser.add_argument(
-        '-j', '--njobs',
-        help='Number of parallel jobs.',
-        type=int,
-        default=1,
-    )
-    parser.add_argument(
         '-r', '--ratio',
         help='Samples per instance ratio',
         type=int,
@@ -194,6 +188,6 @@ if __name__ == '__main__':
     instances = glob.glob(instance_dir + f'/*.lp')
     num_samples = args.ratio * len(instances)
     out_dir = sample_dir + f'/{args.instance_type}_{difficulty}'
-    os.makedirs(out_dir)  # create output directory, throws an error if it already exists
+    os.makedirs(out_dir, exist_ok=True)
     print(f"{len(instances)} {args.instance_type} instances for {num_samples} {args.sampling_type} samples")
     collect_samples(instances, out_dir, args.ksols, num_samples, args.sampling_type, rng)

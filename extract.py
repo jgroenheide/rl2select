@@ -24,7 +24,7 @@ class BaseSampler:
             'type': "sample",
             'episode': self.episode,
             'filename': filename,
-        }, False)
+        })
 
         self.action_count[action] += 1
         self.sample_count += 1

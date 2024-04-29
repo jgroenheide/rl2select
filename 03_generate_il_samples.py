@@ -31,12 +31,12 @@ def make_samples(in_queue, out_queue, tmp_dir, k_sols, sampling):
     """
     while True:
         # Fetch an instance...
-        episode, instance, seed = in_queue.get(timeout=10)
+        episode, instance, seed = in_queue.get()
         instance_id = f'[w {os.getpid()}] episode {episode}'
         print(f"{instance_id}: Processing instance '{instance}'...")
 
         # Retrieve available solution files
-        solution_files = sorted(glob.glob(f'{instance[:-3]}-*.sol'), key=len)[:k_sols]
+        solution_files = sorted(glob.glob(f'{instance[:-3]}-*.sol'), key=len)
         print(f"{instance_id}: Retrieved {len(solution_files)} solutions")
         if len(solution_files) == 0:
             print("ABORT: No solutions")
@@ -53,7 +53,7 @@ def make_samples(in_queue, out_queue, tmp_dir, k_sols, sampling):
         utilities.init_scip_params(m, seed)
 
         solutions = []
-        for solution_file in solution_files:
+        for solution_file in solution_files[:k_sols]:
             solution = m.readSolFile(solution_file)
             solutions.append(solution)
 
@@ -77,7 +77,7 @@ def make_samples(in_queue, out_queue, tmp_dir, k_sols, sampling):
         out_queue.put({
             'type': "start",
             'episode': episode,
-        }, False)
+        })
 
         m.optimize()
         m.freeProb()
@@ -91,8 +91,7 @@ def make_samples(in_queue, out_queue, tmp_dir, k_sols, sampling):
             'episode': episode,
             'action_count': sampler.action_count,
             'sample_count': sampler.sample_count,
-        }, False)
-        print(f"{instance_id}: Still alive :)")
+        })
 
 
 def send_orders(orders_queue, instances, random):
@@ -175,7 +174,18 @@ def collect_samples(instances, sample_dir, n_jobs, k_sols, max_samples, sampling
     sample_count = 0
     action_count = [0, 0]
     while n_samples < max_samples:
-        sample = answers_queue.get(timeout=10)
+        if not workers[0].is_alive():
+            del buffer[episode_i]
+            episode_i += 1
+            p = mp.Process(
+                target=make_samples,
+                args=(orders_queue, answers_queue, tmp_dir, k_sols, sampling),
+                daemon=True)
+            workers[0] = p
+            p.start()
+
+        assert all([p.is_alive() for p in workers])
+        sample = answers_queue.get()
 
         # add received sample to buffer
         if sample['type'] == 'start':
@@ -265,6 +275,12 @@ if __name__ == '__main__':
         help='Number of solutions to save.',
         default=config['k'],
         type=int,
+    )
+    parser.add_argument(
+        '-j', '--njobs',
+        help='Number of parallel jobs.',
+        type=int,
+        default=1,
     )
     parser.add_argument(
         '-r', '--ratio',

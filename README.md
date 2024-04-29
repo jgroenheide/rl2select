@@ -139,11 +139,15 @@ def collector(problem, config, n_jobs, k_sols, random):
 
 Experiments:
 IL:
-- K sols: [1, 2, 5, 10]
+- K sols: [1, 10]
 - Problem: [GISP10, SSCFLP]
 - Sampler: [Weighted, Double, Random]
     Total: 24 Experiments
            24 Sample sets
 RL:
 - Problem: [GISP, CFLP]
-- 
+
+Fixing the sampling code:
+ - Either: Find out why PySCIPopt is crashing, fix the issue, then run the code as normal, or
+           Make the sampler resistant to crashing. When a sub-process crashes, start a new one.
+ - 
