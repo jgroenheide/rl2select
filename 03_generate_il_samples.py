@@ -174,17 +174,6 @@ def collect_samples(instances, sample_dir, n_jobs, k_sols, max_samples, sampling
     sample_count = 0
     action_count = [0, 0]
     while n_samples < max_samples:
-        if not workers[0].is_alive():
-            del buffer[episode_i]
-            episode_i += 1
-            p = mp.Process(
-                target=make_samples,
-                args=(orders_queue, answers_queue, tmp_dir, k_sols, sampling),
-                daemon=True)
-            workers[0] = p
-            p.start()
-
-        assert all([p.is_alive() for p in workers])
         sample = answers_queue.get()
 
         # add received sample to buffer
@@ -298,6 +287,6 @@ if __name__ == '__main__':
     instances = glob.glob(instance_dir + f'/*.lp')
     num_samples = args.ratio * len(instances)
     out_dir = sample_dir + f'/{args.instance_type}_{difficulty}'
-    os.makedirs(out_dir)  # create output directory, throws an error if it already exists
+    os.makedirs(out_dir, exist_ok=True)  # create output directory, throws an error if it already exists
     print(f"{len(instances)} {args.instance_type} instances for {num_samples} {args.sampling_type} samples")
     collect_samples(instances, out_dir, args.njobs, args.ksols, num_samples, args.sampling_type, rng)
