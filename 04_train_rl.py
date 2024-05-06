@@ -114,14 +114,14 @@ if __name__ == '__main__':
     running_dir = experiment_dir + f'/{args.seed}_{timestamp}'
     os.makedirs(running_dir, exist_ok=True)
     logfile = running_dir + '/rl_train_log.txt'
-    # wb.init(project="rl2select", config=config)
+    wb.init(project="rl2select", config=config)
 
     log(f"training instances: {len(train_files)}", logfile)
     log(f"validation instances: {len(valid_files)}", logfile)
     log(f"max epochs: {config['num_epochs']}", logfile)
     # log(f"batch size (train): {batch_train}", logfile)
     # log(f"batch_size (valid): {batch_valid}", logfile)
-    # log(f"learning rate: {lr}", logfile)
+    log(f"learning rate: {config['lr']}", logfile)
     log(f"problem: {args.problem}", logfile)
     log(f"gpu: {args.gpu}", logfile)
     log(f"seed {args.seed}", logfile)
