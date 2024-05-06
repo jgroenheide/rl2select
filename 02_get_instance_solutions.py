@@ -42,6 +42,10 @@ def solve_instance(in_queue, out_queue, k_sols):
         m.readProblem(instance)
         m.optimize()
 
+        # Statistics to help tune new problems
+        print(f"NNodes: {m.getNNodes()}")
+        print(f"NSols: {m.getNBestSolsFound()}")
+
         if m.getStatus() == "optimal" and m.getNNodes() > 100:
             # retrieve and save solutions to individual files
             solutions = m.getSols()[:k_sols]
@@ -138,7 +142,7 @@ def generate_instances(orders_queue, problem, random, transfer=False):
             orders_queue.put([filename, random.integers(2 ** 31)])
             episode += 1
 
-    elif problem == 'mknapsack':
+    elif problem == 'mkp':
         n_items = 100
         n_knapsacks = 12 if transfer else 6
         tmp_dir = out_dir + f'/tmp_{n_items}_{n_knapsacks}'

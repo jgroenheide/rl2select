@@ -260,16 +260,16 @@ def generate_capacitated_facility_location(n_customers, n_facilities, ratio, fil
         file.write("minimize\nobj: ")
         file.write(" + ".join([f"{trans_costs[i, j]}x_{i + 1}_{j + 1}"
                                for i in range(n_customers)
+                               for j in range(n_facilities)] +
+                              [f"{fixed_costs[j]}y_{j + 1}"
                                for j in range(n_facilities)]))
-        file.write("".join([f" + {fixed_costs[j]}y_{j + 1}"
-                            for j in range(n_facilities)]))
 
         file.write("\n\nsubject to\n")
         for i in range(n_customers):
             file.write(f"demand_{i + 1}: " +
-                       " - ".join([f"x_{i + 1}_{j + 1}"
+                       " + ".join([f"x_{i + 1}_{j + 1}"
                                    for j in range(n_facilities)])
-                       + f" <= -1\n")
+                       + f" = 1\n")
         for j in range(n_facilities):
             file.write(f"capacity_{j + 1}: " +
                        " + ".join([f"{demands[i]}x_{i + 1}_{j + 1}"
@@ -278,7 +278,7 @@ def generate_capacitated_facility_location(n_customers, n_facilities, ratio, fil
 
         # optional constraints for LP relaxation tightening
         file.write("total_capacity: " +
-                   " - ".join([f"{capacities[j]}y_{j + 1}"
+                   " + ".join([f" -{capacities[j]}y_{j + 1}"
                                for j in range(n_facilities)]) +
                    f" <= -{total_demand}\n")
         for i in range(n_customers):
@@ -286,8 +286,9 @@ def generate_capacitated_facility_location(n_customers, n_facilities, ratio, fil
                 file.write(f"affectation_{i + 1}_{j + 1}: x_{i + 1}_{j + 1} - y_{j + 1} <= 0\n")
 
         file.write("\nbinary\n")
-        file.write(" ".join([f"y_{j + 1}" for j in range(n_facilities)]))
-        file.write("".join([f" x_{i + 1}_{j + 1}"
+        file.write(" ".join([f"y_{j + 1}"
+                             for j in range(n_facilities)] +
+                            [f"x_{i + 1}_{j + 1}"
                              for i in range(n_customers)
                              for j in range(n_facilities)]))
 
@@ -526,32 +527,27 @@ def generate_mknapsack(n_items, n_knapsacks, weights, values, filename, random):
     capacities[-1] = 0.5 * weights.sum() - capacities[:-1].sum()
 
     with open(filename, 'w') as file:
-        file.write("maximize\nOBJ:")
-        for knapsack in range(n_knapsacks):
-            for item in range(n_items):
-                file.write(f" +{values[item]} x{item + n_items * knapsack + 1}")
+        file.write("maximize\nOBJ: ")
+        file.write(" + ".join([f"{values[i]}x{i + 1}_{k + 1}"
+                               for i in range(n_items)
+                               for k in range(n_knapsacks)]))
 
         file.write("\n\nsubject to\n")
-        for knapsack in range(n_knapsacks):
-            variables = "".join([f" +{weights[item]} x{item + n_items * knapsack + 1}"
-                                 for item in range(n_items)])
-            file.write(f"C{knapsack + 1}:" + variables + f" <= {capacities[knapsack]}\n")
+        for k in range(n_knapsacks):
+            file.write(f"capacity_{k + 1}: " +
+                       " + ".join([f"{weights[i]}x{i + 1}_{k + 1}"
+                                   for i in range(n_items)]) +
+                       f" <= {capacities[k]}\n")
 
-        for item in range(n_items):
-            variables = "".join([f" +1 x{item + n_items * knapsack + 1}"
-                                 for knapsack in range(n_knapsacks)])
-            file.write(f"C{n_knapsacks + item + 1}:" + variables + " <= 1\n")
+        for i in range(n_items):
+            file.write(f"C_{i + 1}: " + " + ".join([f"x{i + 1}_{k + 1}" for k in range(n_knapsacks)]) + " <= 1\n")
 
-        file.write("\nbinary\n")
-        for knapsack in range(n_knapsacks):
-            for item in range(n_items):
-                file.write(f" x{item + n_items * knapsack + 1}")
+        file.write("\nbinary\n" + " ".join([f"x{i + 1}_{k + 1}" for i in range(n_items) for k in range(n_knapsacks)]))
 
 # ------------------ COMBINATORIAL AUCTIONS ------------------------
 def generate_cauctions(n_items, n_bids, filename, random, min_value=1, max_value=100,
                        value_deviation=0.5, add_item_prob=0.7, max_n_sub_bids=5,
-                       additivity=0.2, budget_factor=1.5, resale_factor=0.5,
-                       integers=False, warnings=False):
+                       additivity=0.2, budget_factor=1.5, resale_factor=0.5, integers=False):
     """
     Generate a Combinatorial Auction problem following the 'arbitrary' scheme found in section 4.3. of
         Kevin Leyton-Brown, Mark Pearson, and Yoav Shoham. (2000).
@@ -645,8 +641,6 @@ def generate_cauctions(n_items, n_bids, filename, random, min_value=1, max_value
 
         # drop negatively priced bundles
         if price < 0:
-            if warnings:
-                print("warning: negatively priced bundle avoided")
             continue
 
         # bid on initial bundle
@@ -682,24 +676,13 @@ def generate_cauctions(n_items, n_bids, filename, random, min_value=1, max_value
             if len(bidder_bids) >= max_n_sub_bids + 1 or len(bids) + len(bidder_bids) >= n_bids:
                 break
 
-            if price < 0:
-                if warnings:
-                    print("warning: negatively priced substitutable bundle avoided")
-                continue
-
-            if price > budget:
-                if warnings:
-                    print("warning: over priced substitutable bundle avoided")
+            if not 0 < price < budget:
                 continue
 
             if values[bundle].sum() < min_resale_value:
-                if warnings:
-                    print("warning: substitutable bundle below min resale value avoided")
                 continue
 
             if frozenset(bundle) in bidder_bids:
-                if warnings:
-                    print("warning: duplicated substitutable bundle avoided")
                 continue
 
             bidder_bids[frozenset(bundle)] = price
@@ -719,23 +702,20 @@ def generate_cauctions(n_items, n_bids, filename, random, min_value=1, max_value
     with open(filename, 'w') as file:
         bids_per_item = [[] for item in range(n_items + n_dummy_items)]
 
-        file.write("maximize\nOBJ:")
+        file.write("maximize\nOBJ: ")
+        # file.write(" + ".join([f"{price}x{i + 1}" for i, (bundle, price) in enumerate(bids)]))
         for i, bid in enumerate(bids):
             bundle, price = bid
-            file.write(f" +{price} x{i + 1}")
+            file.write(f" + {price}x{i + 1}")
             for item in bundle:
                 bids_per_item[item].append(i)
 
         file.write("\n\nsubject to\n")
         for item_bids in bids_per_item:
             if item_bids:
-                for i in item_bids:
-                    file.write(f" +1 x{i + 1}")
-                file.write(f" <= 1\n")
+                file.write(" + ".join([f"x{i + 1}" for i in item_bids]) + f" <= 1\n")
 
-        file.write("\nbinary\n")
-        for i in range(len(bids)):
-            file.write(f" x{i + 1}")
+        file.write("\nbinary\n" + " ".join([f"x{i + 1}" for i in range(len(bids))]))
 
 
 if __name__ == '__main__':
@@ -824,7 +804,7 @@ if __name__ == '__main__':
                 filename = os.path.join(out_dir, f'instance_{i + 1}.lp')
                 generate_setcover(n_rows, n_cols, density, max_coef, filename, rng)
 
-    elif args.problem == 'mknapsack':
+    elif args.problem == 'mkp':
         n_items = 100
         for instance_type, num_instances in config['num_instances']:
             n_knapsacks = 12 if instance_type == 'transfer' else 6

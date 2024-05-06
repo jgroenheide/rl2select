@@ -17,6 +17,8 @@ class NodeselOracle(NodeselEstimate):
         self.is_sol_node = {1: 0}
 
     def nodeselect(self):
+        if self.sampling == "Nodes":
+            return {'selnode': self.model.getBestNode()}
         if self.sampling != "Children":
             return super().nodeselect()
 
@@ -40,9 +42,9 @@ class NodeselOracle(NodeselEstimate):
         max_rank = len(self.solutions)
         sol_ranks = [max_rank, max_rank]
         for child_index, child in enumerate(children):
+            # If the parent node contained the optimal sol,
+            # it is sufficient to only check the new bounds
             branchings = child.getParentBranchings()
-            # By partitioning, it is sufficient to only check the new
-            # bounds of the parent node and if sol satisfies the new bounds
             for sol_rank, sol in enumerate(self.solutions[k:]):
                 for bvar, bbound, btype in zip(*branchings):
                     if btype == 0 and sol[bvar] < bbound: break  # EXCEEDS LOWER BOUND
@@ -72,27 +74,32 @@ class NodeselOracle(NodeselEstimate):
         max_rank = len(self.solutions)
         sol_ranks = [max_rank, max_rank]
         for node_index, node in enumerate([node1, node2]):
+            # If the parent node contained the optimal sol,
+            # it is sufficient to only check the new bounds
+            parent_number = node.getParent().getNumber()
+            if parent_number not in self.is_sol_node: continue
+
             branchings = node.getParentBranchings()
-            # By partitioning, it is sufficient to only check the new
-            # bounds of the parent node and if sol satisfies the new bounds
             for sol_rank, sol in enumerate(self.solutions):
                 for bvar, bbound, btype in zip(*branchings):
                     if btype == 0 and sol[bvar] < bbound: break  # EXCEEDS LOWER BOUND
                     if btype == 1 and sol[bvar] > bbound: break  # EXCEEDS UPPER BOUND
                 else:                                            # SATISFIES ALL BOUNDS
                     node_number = node.getNumber()
-                    self.is_sol_node[node_number] = sol_rank
+                    self.is_sol_node[node_number] = 0
                     sol_ranks[node_index] = sol_rank
                     break  # break from solutions loop
+
+        if sol_ranks[0] == sol_ranks[1]:
+            return super().nodecomp(node1, node2)
 
         action = int(sol_ranks[1] < sol_ranks[0])
         both = sol_ranks[0] < max_rank and sol_ranks[1] < max_rank
         # parent_number = node.getParent().getNumber() if depth > 0 else 'ROOT' -> | Parent: {parent_number}
-        print(f"Action: {['left', 'right'][action]} | Both: {both}")
+        print(f"Node1: {node1.getNumber()} | Node2: {node2.getNumber()} | Action: {['left', 'right'][action]} | Both: {both}")
 
         b, n1, n2, g = utilities.extract_MLP_state(self.model, node1, node2)
         state = ([b, n1, g], [b, n2, g])
-        self.sampler.write_sample(*state, action)
+        self.sampler.create_sample(*state, action)
 
         return super().nodecomp(node1, node2)
-

@@ -30,13 +30,13 @@ class NodeselAgent(NodeselDFS):
         }
 
     def nodeselect(self):
-        return {'selnode': self.model.getBestNode()}
-        # if self.model.getNChildren() != 2:
-        #     # n = self.model.getNChildren()
-        #     # print(f'return DFS node: {n}')
-        #     return super().nodeselect()
-        # selnode = self.model.getBestChild()
-        # return {'selnode': selnode}
+        if self.model.getNChildren() != 2:
+            # n = self.model.getNChildren()
+            # print(f'return DFS node: {n}')
+            return super().nodeselect()
+        selnode = self.model.getBestChild()
+        # selnode = self.model.getBestNode()
+        return {'selnode': selnode}
 
     def nodecomp(self, node1, node2):
         GUB = self.model.getUpperbound()

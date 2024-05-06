@@ -20,15 +20,15 @@
   "num_valid_seeds": 5,
   "valid_freq": 10,
 
-  "problems": ["indset", "gisp", "cflp", "fcmcnf", "setcover", "mknapsack", "cauctions"],
+  "problems": ["indset", "gisp", "cflp", "fcmcnf", "setcover", "mkp", "cauctions"],
   "num_instances": [["train", 4000], ["valid", 1000], ["test", 50], ["transfer", 50]],
   "difficulty": {
     "indset": "500_4",
     "gisp": "60_0.5",
+    "mkp": "100_6",
     "cflp": "35_35_5",
     "fcmcnf": "15_22_0.33",
     "setcover": "400_750_0.05",
-    "mknapsack": "100_6",
     "cauctions": "100_500"
   }
 }
