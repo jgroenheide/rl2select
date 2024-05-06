@@ -268,8 +268,8 @@ def collector(problem, config, n_jobs, k_sols, random):
 
             if instance_type in ['train', 'valid']:
                 for j in range(instance['num_sols']):
-                    os.rename(f"{old_filename[:-3]}-{j + 1}.sol",
-                              f"{new_filename[:-3]}-{j + 1}.sol")
+                    os.rename(f'{old_filename[:-3]}-{j + 1}.sol',
+                              f'{new_filename[:-3]}-{j + 1}.sol')
             else:  # instance_type in ['test', 'transfer']
                 tmp_dirs.append(tmp_dir)
 

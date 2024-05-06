@@ -140,10 +140,8 @@ def collector(problem, config, n_jobs, k_sols, random):
 Experiments:
 IL:
 - K sols: [1, 10]
-- Problem: [GISP10, SSCFLP]
-- Sampler: [Weighted, Double, Random]
-    Total: 24 Experiments
-           24 Sample sets
+- Problem: [GISP10, SSCFLP, CAUCTIONS]
+    Total: 6 Experiments
 RL:
 - Problem: [GISP, CFLP]
 

@@ -32,7 +32,7 @@ def make_samples(in_queue, out_queue, tmp_dir, k_sols, sampling):
     while True:
         # Fetch an instance...
         episode, instance, seed = in_queue.get()
-        instance_id = f'[w {os.getpid()}] episode {episode}'
+        instance_id = f"[w {os.getpid()}] episode {episode}"
         print(f"{instance_id}: Processing instance '{instance}'...")
 
         # Retrieve available solution files
@@ -57,20 +57,20 @@ def make_samples(in_queue, out_queue, tmp_dir, k_sols, sampling):
             solution = m.readSolFile(solution_file)
             solutions.append(solution)
 
-        if sampling == 'Weighted':
-            sampler = extract.BaseSampler(episode, tmp_dir, out_queue)
-        elif sampling == 'Random':
-            sampler = extract.RandomSampler(episode, tmp_dir, out_queue, seed)
-        elif sampling == 'Double':
-            sampler = extract.DoubleSampler(episode, tmp_dir, out_queue)
-        else:
-            raise ValueError
-
-        oracle = NodeselOracle(sampler, solutions)
+        # if sampling == 'Weighted':
+        #     sampler = extract.BaseSampler(episode, tmp_dir, out_queue)
+        # elif sampling == 'Random':
+        #     sampler = extract.RandomSampler(episode, tmp_dir, out_queue, seed)
+        # elif sampling == 'Double':
+        #     sampler = extract.DoubleSampler(episode, tmp_dir, out_queue)
+        # else:
+        #     raise ValueError
+        sampler = extract.RandomSampler(episode, tmp_dir, out_queue, seed)
+        oracle = NodeselOracle(sampler, sampling, solutions)
 
         m.includeNodesel(nodesel=oracle,
-                         name='nodesel_oracle',
-                         desc='BestEstimate node selector that saves samples based on a diving oracle',
+                         name="nodesel_oracle",
+                         desc="BestEstimate node selector that saves samples based on a diving oracle",
                          stdpriority=999999,
                          memsavepriority=999999)
 
@@ -250,8 +250,8 @@ if __name__ == '__main__':
     )
     parser.add_argument(
         'sampling_type',
-        help='Type of instances to sample',
-        choices=['Weighted', 'Random', 'Double'],
+        help='Type of sampling to apply',
+        choices=['Children', 'Nodes'],
     )
     parser.add_argument(
         '-s', '--seed',

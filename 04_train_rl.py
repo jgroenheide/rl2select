@@ -10,13 +10,15 @@ import json
 import glob
 import time
 
+import argparse
 import numpy as np
 import torch as th
 import wandb as wb
-import argparse
 
-from scipy.stats.mstats import gmean
+from agent import AgentPool
+from brain import Brain
 from utilities import log
+from scipy.stats.mstats import gmean
 
 if __name__ == '__main__':
     # read default config file
@@ -49,10 +51,6 @@ if __name__ == '__main__':
     )
     args = parser.parse_args()
 
-    # override config with command-line arguments if provided
-    args_config = {key: getattr(args, key) for key in config.keys() & vars(args).keys()}
-    config.update(args_config)
-
     # configure gpu
     if config['gpu'] == -1:
         os.environ['CUDA_VISIBLE_DEVICES'] = ''
@@ -60,10 +58,6 @@ if __name__ == '__main__':
     else:
         os.environ['CUDA_VISIBLE_DEVICES'] = f"{config['gpu']}"
         device = f"cuda:0"
-
-    # import torch after gpu configuration
-    from agent import AgentPool
-    from brain import Brain
 
     if args.gpu > -1:
         th.backends.cudnn.deterministic = True
@@ -80,10 +74,10 @@ if __name__ == '__main__':
     # recover training / validation instances and collect
     # the pre-computed optimal solutions for the instances
     instance_dir = f'data/{args.problem}/instances'
-    train_files = [str(file) for file in glob.glob(
-        instance_dir + f'/train_{difficulty}/*.lp')]
-    valid_files = [str(file) for file in glob.glob(
-        instance_dir + f'/valid_{difficulty}/*.lp')]
+    train_files = [str(file).replace('\\', '/') for file in
+                   glob.glob(instance_dir + f'/train_{difficulty}/*.lp')]
+    valid_files = [str(file).replace('\\', '/') for file in
+                   glob.glob(instance_dir + f'/valid_{difficulty}/*.lp')]
 
     if not os.path.exists(instance_dir + f'/obj_values.json'):
         obj_values = {}
@@ -103,7 +97,7 @@ if __name__ == '__main__':
 
     def train_batch_generator():
         episodes_per_epoch = int(config['num_valid_instances'] * config['num_valid_seeds'] / config['valid_freq'])
-        train_batches = [{'path': instance, 'seed': rng.randint(0, 2 ** 31), 'sol': opt_sols[instance]}
+        train_batches = [{'path': instance, 'seed': rng.randint(0, 2**31), 'sol': opt_sols[instance]}
                          for instance in rng.choice(train_files, size=episodes_per_epoch, replace=True)]
         while True:
             yield train_batches
@@ -116,10 +110,11 @@ if __name__ == '__main__':
 
     # Create timestamp to save weights
     timestamp = time.strftime('%Y-%m-%d--%H.%M.%S')
-    running_dir = f'experiments/{args.problem}_{difficulty}/{args.seed}_{timestamp}'
+    experiment_dir = f'experiments/{args.problem}/04_train_rl'
+    running_dir = experiment_dir + f'/{args.seed}_{timestamp}'
     os.makedirs(running_dir, exist_ok=True)
-    logfile = os.path.join(running_dir, 'rl_train_log.txt')
-    wb.init(project="rl2select", config=config)
+    logfile = running_dir + '/rl_train_log.txt'
+    # wb.init(project="rl2select", config=config)
 
     log(f"training instances: {len(train_files)}", logfile)
     log(f"validation instances: {len(valid_files)}", logfile)

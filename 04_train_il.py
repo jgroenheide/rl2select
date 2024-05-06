@@ -111,12 +111,6 @@ if __name__ == "__main__":
         default=config['gpu'],
         type=int,
     )
-    parser.add_argument(
-        '-k', '--ksols',
-        help='Number of solutions to save.',
-        default=config['k'],
-        type=int,
-    )
     args = parser.parse_args()
 
     # --- HYPER PARAMETERS --- #
@@ -140,13 +134,13 @@ if __name__ == "__main__":
     sample_dir = f'data/{args.problem}/samples/{args.dir}/train_{difficulty}'
     train_files = [str(file) for file in glob.glob(sample_dir + '/*.pkl')]
 
+    # Load weighting data; TODO: Remove
     file_path = f"{sample_dir}/class_dist.json"
     if os.path.exists(file_path):
         # collect the pre-computed class distribution of the samples
         with open(file_path, "r") as f:
             class_dist = json.load(f)
     else: class_dist = [0.5, 0.5]
-    # norm_values = [1 / x for x in class_dist]
     norm_values = [max(class_dist[1] / class_dist[0], 1),
                    max(class_dist[0] / class_dist[1], 1)]
 
@@ -180,9 +174,10 @@ if __name__ == "__main__":
 
     # Create timestamp to save weights
     timestamp = time.strftime('%Y-%m-%d--%H.%M.%S')
-    running_dir = f'experiments/{args.problem}_{difficulty}/{args.seed}_{timestamp}'
-    os.makedirs(running_dir)
-    logfile = os.path.join(running_dir, 'il_train_log.txt')
+    experiment_dir = f'experiments/{args.problem}/04_train_il'
+    running_dir = experiment_dir + f'/{args.seed}_{timestamp}'
+    os.makedirs(running_dir, exist_ok=True)
+    logfile = running_dir + '/il_train_log.txt'
     wb.init(project="rl2select", config=config)
 
     log(f"training files: {len(train_files)}", logfile)
@@ -194,7 +189,6 @@ if __name__ == "__main__":
     log(f"problem: {args.problem}", logfile)
     log(f"seed {args.seed}", logfile)
     log(f"gpu: {args.gpu}", logfile)
-    log(f"k_sols: {args.ksols}", logfile)
 
     best_epoch = 0
     total_elapsed_time = 0

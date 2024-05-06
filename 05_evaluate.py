@@ -3,7 +3,7 @@
 # rule, on 2 benchmarks (test and transfer). Each instance-model pair is solved #
 # with 5 different seeds. Output is written into a csv file.                    #
 # Usage:                                                                        #
-# python 05_evaluate.py <type> -g <cudaId>                                         #
+# python 05_evaluate.py <type> -g <cudaId>                                      #
 # * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * #
 import glob
 import os
@@ -232,8 +232,9 @@ if __name__ == "__main__":
     instances = glob.glob(instance_dir + '/*.lp')
 
     timestamp = time.strftime('%Y-%m-%d--%H.%M.%S')
-    running_dir = f'experiments/{args.problem}_{difficulty}/{args.seed}_{timestamp}'
-    os.makedirs(running_dir)
+    experiment_dir = f'experiments/{args.problem}/05_evaluate'
+    running_dir = experiment_dir + f'/{args.seed}_{timestamp}'
+    os.makedirs(running_dir, exist_ok=True)
     for nodesel in policies:
         for static in [True, False]:
             static_ = "static_" if static else ""
