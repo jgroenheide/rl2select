@@ -80,6 +80,7 @@ if __name__ == '__main__':
                    glob.glob(instance_dir + f'/valid_{difficulty}/*.lp')]
 
     if not os.path.exists(instance_dir + f'/obj_values.json'):
+        print("obj_values.json not found. Creating from instance_solutions")
         obj_values = {}
         with open(instance_dir + f'/train_{difficulty}/instance_solutions.json') as f:
             obj_values.update(json.load(f))
