@@ -86,7 +86,7 @@ if __name__ == '__main__':
             obj_values.update(json.load(f))
         with open(instance_dir + f'/valid_{difficulty}/instance_solutions.json') as f:
             obj_values.update(json.load(f))
-        with open(instance_dir + f'obj_values.json', 'w') as f:
+        with open(instance_dir + f'/obj_values.json', 'w') as f:
             json.dump(obj_values, f)
     with open(instance_dir + f'/obj_values.json') as f:
         opt_sols = json.load(f)
