@@ -6,6 +6,23 @@ import torch_geometric
 import torch.utils.data
 
 
+class Dataset(th.utils.data.Dataset):
+    def __init__(self, sample_files):
+        super().__init__()
+        self.sample_files = sample_files
+
+    def __len__(self):
+        return len(self.sample_files)
+
+    def __getitem__(self, index):
+        with gzip.open(self.sample_files[index], 'rb') as f:
+            sample = pickle.load(f)
+
+        state1 = th.tensor(sample['state1'], dtype=th.float32)
+        state2 = th.tensor(sample['state2'], dtype=th.float32)
+        return (state1, state2), sample['action']
+
+
 class BipartiteNodeData(torch_geometric.data.Data):
     def __init__(self, constraint_features, edge_index, edge_attr, variable_features, action):
         x = th.concatenate((constraint_features, variable_features))
@@ -56,9 +73,9 @@ class BipartiteGraphPairData(torch_geometric.data.Data):
         for those entries (edge index, candidates) for which this is not obvious.
         """
         if key == 'edge_index_s':
-            return torch.tensor([[self.variable_features_s.size(0)], [self.constraint_features_s.size(0)]])
+            return th.tensor([[self.variable_features_s.size(0)], [self.constraint_features_s.size(0)]])
         elif key == 'edge_index_t':
-            return torch.tensor([[self.variable_features_t.size(0)], [self.constraint_features_t.size(0)]])
+            return th.tensor([[self.variable_features_t.size(0)], [self.constraint_features_t.size(0)]])
         else:
             return super().__inc__(key, value, *args, **kwargs)
 
@@ -88,22 +105,5 @@ class GraphDataset(torch_geometric.data.Dataset):
         return BipartiteNodeData(constraint_features, edge_indices, edge_features, variable_features, sample['action'])
 
     def torch_get(self, idx):
-        data = torch.load(self.sample_files[idx])
+        data = th.load(self.sample_files[idx])
         return data
-
-
-class Dataset(th.utils.data.Dataset):
-    def __init__(self, sample_files):
-        super().__init__()
-        self.sample_files = sample_files
-
-    def __len__(self):
-        return len(self.sample_files)
-
-    def __getitem__(self, index):
-        with gzip.open(self.sample_files[index], 'rb') as f:
-            sample = pickle.load(f)
-
-        state0 = np.concatenate(sample['state0'], dtype=np.float32)
-        state1 = np.concatenate(sample['state1'], dtype=np.float32)
-        return (state0, state1), sample['action']

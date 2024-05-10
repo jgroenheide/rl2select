@@ -234,10 +234,10 @@ def generate_capacitated_facility_location(n_customers, n_facilities, ratio, fil
     random : numpy.random.Generator
         A random number generator.
     """
-    demands = random.integers(5, 35 + 1, size=n_customers)
-    capacities = random.integers(10, 160 + 1, size=n_facilities)
-    fixed_costs = (random.integers(100, 110 + 1, size=n_facilities) * np.sqrt(capacities) +
-                   random.integers(90 + 1, size=n_facilities)).astype(int)
+    demands = random.integers(5, 35, size=n_customers)
+    capacities = random.integers(16, 64, size=n_facilities)  # original: 10-160
+    fixed_costs = (random.integers(100, 110, size=n_facilities) * np.sqrt(capacities) +
+                   random.integers(90, size=n_facilities)).astype(int)
 
     total_demand = demands.sum()
     total_capacity = capacities.sum()

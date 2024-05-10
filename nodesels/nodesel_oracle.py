@@ -17,10 +17,12 @@ class NodeselOracle(NodeselEstimate):
         self.is_sol_node = {1: 0}
 
     def nodeselect(self):
+        print("*** ===================== ***")
+        if self.model.getNNodes() > 5000:
+            self.model.interruptSolve()
         if self.sampling == "Nodes":
-            return {'selnode': self.model.getBestNode()}
-        if self.sampling != "Children":
-            return super().nodeselect()
+            selnode = self.model.getBestNode()
+            return {'selnode': selnode}
 
         depth = self.model.getDepth()
         if depth < 0:
@@ -61,13 +63,13 @@ class NodeselOracle(NodeselEstimate):
         # parent_number = node.getParent().getNumber() if depth > 0 else 'ROOT' -> | Parent: {parent_number}
         print(f"Node: {node_number} | Depth: {depth} | Action: {['left', 'right'][action]} | Both: {both}")
 
-        b, n1, n2, g = utilities.extract_MLP_state(self.model, *children)
-        state = ([b, n1, g], [b, n2, g])
+        state = utilities.extract_MLP_state(self.model, *children)
         self.sampler.create_sample(*state, action)
 
         return super().nodeselect()
 
     def nodecomp(self, node1, node2):
+        print(f"Node1: {node1.getNumber()} | Node2: {node2.getNumber()}")
         if self.sampling != "Nodes":
             return super().nodecomp(node1, node2)
 
@@ -96,10 +98,9 @@ class NodeselOracle(NodeselEstimate):
         action = int(sol_ranks[1] < sol_ranks[0])
         both = sol_ranks[0] < max_rank and sol_ranks[1] < max_rank
         # parent_number = node.getParent().getNumber() if depth > 0 else 'ROOT' -> | Parent: {parent_number}
-        print(f"Node1: {node1.getNumber()} | Node2: {node2.getNumber()} | Action: {['left', 'right'][action]} | Both: {both}")
+        # print(f"Node1: {node1.getNumber()} | Node2: {node2.getNumber()} | Action: {['left', 'right'][action]} | Both: {both}")
 
-        b, n1, n2, g = utilities.extract_MLP_state(self.model, node1, node2)
-        state = ([b, n1, g], [b, n2, g])
+        state = utilities.extract_MLP_state(self.model, node1, node2)
         self.sampler.create_sample(*state, action)
 
         return super().nodecomp(node1, node2)

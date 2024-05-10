@@ -86,21 +86,11 @@ class NodeselEstimate(scip.Nodesel):
         self.best_node_freq = 10
         self.breadth_first_depth = -1
         self.plunge_offset = 0
-        self.iters = 0
-        self.scip_inf = None
-
-    def nodeinit(self):
-        self.scip_inf = self.model.infinity()
 
     def nodeselect(self):
-        self.model.getBestChild()
-        self.model.getPrioChild()
-        if self.scip_inf is None:
-            self.scip_inf = self.model.infinity()
-        self.iters += 1
         # check if the breadth-first search should be applied
         if self.model.getDepth() <= self.breadth_first_depth:
-            selnode = self.model.getBestChild()
+            selnode = self.model.getPrioSibling()
             if selnode is not None:
                 return {'selnode': selnode}
 
@@ -177,14 +167,14 @@ class NodeselEstimate(scip.Nodesel):
         estimate1 = node1.getEstimate()
         estimate2 = node2.getEstimate()
 
-        is_positive_inf = estimate1 == estimate2 == self.scip_inf
-        is_negative_inf = -estimate1 == -estimate2 == self.scip_inf
-        is_eq = estimate1 == estimate2
+        is_pos_inf = self.model.isInfinity(estimate1) and self.model.isInfinity(estimate2)
+        is_neg_inf = self.model.isInfinity(-estimate1) and self.model.isInfinity(-estimate2)
+        is_eq = self.model.isEQ(estimate1, estimate2)
 
-        if is_positive_inf or is_negative_inf or is_eq:
+        if is_pos_inf or is_neg_inf or is_eq:
             lowerbound1 = node1.getLowerbound()
             lowerbound2 = node2.getLowerbound()
-            if lowerbound1 == lowerbound2:
+            if self.model.isEQ(lowerbound1, lowerbound2):
                 nodetype1 = node1.getType()
                 nodetype2 = node2.getType()
                 nodetype_child = 3
@@ -201,5 +191,5 @@ class NodeselEstimate(scip.Nodesel):
                 depth2 = node2.getDepth()
                 if depth1 == depth2: return 0
                 return 1 if depth1 > depth2 else -1
-            return 1 if lowerbound1 > lowerbound2 else -1
-        return 1 if estimate1 > estimate2 else -1
+            return 1 if self.model.isGT(lowerbound1, lowerbound2) else -1
+        return 1 if self.model.isGT(estimate1, estimate2) else -1

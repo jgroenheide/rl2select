@@ -17,7 +17,7 @@
   "entropy_bonus": 1e-5,
 
   "num_valid_instances": 20,
-  "num_valid_seeds": 5,
+  "num_valid_seeds": 1,
   "valid_freq": 10,
 
   "problems": ["indset", "gisp", "cflp", "fcmcnf", "setcover", "mkp", "cauctions"],

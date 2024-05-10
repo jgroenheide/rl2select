@@ -5,4 +5,4 @@ PySCIPOpt~=4.4.0
 matplotlib~=3.8.2
 networkx~=3.2.1
 tqdm~=4.66.1
-wandb~=0.16.6
+wandb~=0.17.0

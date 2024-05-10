@@ -1,6 +1,6 @@
 # * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * #
 # Train agent using the imitation learning method of Gasse et al.               #
-# Output is saved to tmp_dir/<seed>_<timestamp>/best_params_il.pkl              #
+# Output is saved to experiments/<problem>/04_train_il/<seed>_<timestamp>       #
 # Usage: python 04_train_il.py <type> -s <seed> -g <cudaId>                     #
 # * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * #
 
@@ -57,10 +57,10 @@ def process(policy, data_loader, optimizer=None):
             # batch = batch.to(device)
             target = action.float()
             output = policy(*state).squeeze()
-            weight = th.where(action < 0.5, *norm_values)
+            # weight = th.where(action < 0.5, *norm_values)
 
             # Loss calculation for binary output
-            loss = th.nn.BCELoss(weight)(output, target)
+            loss = th.nn.BCELoss()(output, target)  # BCELoss(weight)
             y_pred = th.round(output)
 
             # Loss calculation for 3+ output heads
@@ -135,14 +135,14 @@ if __name__ == "__main__":
     train_files = [str(file) for file in glob.glob(sample_dir + '/*.pkl')]
 
     # Load weighting data; TODO: Remove
-    file_path = f"{sample_dir}/class_dist.json"
-    if os.path.exists(file_path):
-        # collect the pre-computed class distribution of the samples
-        with open(file_path, "r") as f:
-            class_dist = json.load(f)
-    else: class_dist = [0.5, 0.5]
-    norm_values = [max(class_dist[1] / class_dist[0], 1),
-                   max(class_dist[0] / class_dist[1], 1)]
+    # file_path = f"{sample_dir}/class_dist.json"
+    # if os.path.exists(file_path):
+    #     # collect the pre-computed class distribution of the samples
+    #     with open(file_path, "r") as f:
+    #         class_dist = json.load(f)
+    # else: class_dist = [0.5, 0.5]
+    # norm_values = [max(class_dist[1] / class_dist[0], 1),
+    #                max(class_dist[0] / class_dist[1], 1)]
 
     if config['model'] == "MLP":
         model = ml.MLPPolicy().to(device)

@@ -2,10 +2,10 @@ import queue
 import utilities
 import numpy as np
 import torch as th
-from nodesels.nodesel_baseline import NodeselDFS
+import pyscipopt as scip
 
 
-class NodeselAgent(NodeselDFS):
+class NodeselAgent(scip.Nodesel):
     def __init__(self, instance, opt_sol, seed, greedy, static, sample_rate, requests_queue):
         super().__init__()
         # self.model = model
@@ -30,22 +30,49 @@ class NodeselAgent(NodeselDFS):
         }
 
     def nodeselect(self):
-        if self.model.getNChildren() != 2:
-            # n = self.model.getNChildren()
-            # print(f'return DFS node: {n}')
-            return super().nodeselect()
+        # calculate minimal and maximal plunging depth
+        min_plunge_depth = int(self.model.getMaxDepth() / 10)
+        if self.model.getNStrongbranchLPIterations() > 2*self.model.getNNodeLPIterations():
+            min_plunge_depth += 10
+
+        max_plunge_depth = int(self.model.getMaxDepth() / 2)
+        max_plunge_depth = max(max_plunge_depth, min_plunge_depth)
+        max_plunge_quot = 0.25
+
+        # check if we are within the maximal plunging depth
+        plunge_depth = self.model.getPlungeDepth()
         selnode = self.model.getBestChild()
-        # selnode = self.model.getBestNode()
-        return {'selnode': selnode}
+        if plunge_depth <= max_plunge_depth and selnode is not None:
+            # get global lower and cutoff bound
+            lower_bound = self.model.getLowerbound()
+            cutoff_bound = self.model.getCutoffbound()
+
+            # if we didn't find a solution yet, the cutoff bound is usually very bad:
+            # use only 20% of the gap as cutoff bound
+            if self.model.getNSolsFound() == 0:
+                max_plunge_quot *= 0.2
+
+            # check, if plunging is forced at the current depth
+            # else calculate maximal plunging bound
+            max_bound = self.model.infinity()
+            if plunge_depth >= min_plunge_depth:
+                max_bound = lower_bound + max_plunge_quot * (cutoff_bound - lower_bound)
+
+            if selnode.getEstimate() < max_bound:
+                return {'selnode': selnode}
+
+        return {'selnode': self.model.getBestboundNode()}
 
     def nodecomp(self, node1, node2):
+        if node1.getParent() != node2.getParent(): return 0
+
         GUB = self.model.getUpperbound()
         if self.static and self.model.isEQ(GUB, self.opt_sol):
             self.model.interruptSolve()
 
-        b, n1, n2, g = utilities.extract_MLP_state(self.model, node1, node2)
-        state = (th.tensor(np.concatenate([b, n1, g]), dtype=th.float32),
-                 th.tensor(np.concatenate([b, n2, g]), dtype=th.float32))
+        state1, state2 = utilities.extract_MLP_state(self.model, node1, node2)
+        state = (th.tensor(state1, dtype=th.float32),
+                 th.tensor(state2, dtype=th.float32))
 
         # send out policy queries
         # should actions be chosen greedily w.r.t. the policy?

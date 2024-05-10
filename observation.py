@@ -160,11 +160,14 @@ def branching_features(model, node, buffer=None):
     branch_var = bound_change.getVar()
     branch_dir = branch_var.getBranchDirection()
 
-    prio_up, prio_down = branch_dir, 1 - branch_dir
+    # if this activates, it might be worth adding prio
+    assert branch_dir != 0 and branch_dir != 1
 
     branchbound = bound_change.getNewBound()
-    var_sol = branch_var.getLPSol()
     var_rootsol = branch_var.getRootSol()
+    var_sol = branch_var.getLPSol()
+    if model.isInfinity(var_sol):
+        var_sol = var_rootsol
 
     bound_lp_diff = branchbound - var_sol
     root_lp_diff = var_rootsol - var_sol
@@ -175,8 +178,8 @@ def branching_features(model, node, buffer=None):
                     else model.getVarAvgInferences(branch_var, 0))
 
     return {
-        "prio_up": prio_up,
-        "prio_down": prio_down,
+        # "prio_down": branch_dir == 0,
+        # "prio_up": branch_dir == 1,
         "bound_lp_diff": bound_lp_diff,
         "root_lp_diff": root_lp_diff,
         "pseudo_cost": pseudo_cost,
@@ -186,12 +189,13 @@ def branching_features(model, node, buffer=None):
 
 def node_features(model, node, buffer=None):
     return {
-        # 'type_child': node.getType() == 0,  # always true for smartDFS
-        # 'type_sibling': node.getType() == 1,
-        # 'type_leaf': node.getType() == 2,
+        # 'type_child': node.getType() == 3,  # always true for smartDFS
+        # 'type_sibling': node.getType() == 2,
+        # 'type_leaf': node.getType() == 4,
         'relative_depth': node.getDepth(),
         'node_lb': node.getLowerbound(),
         'estimate': node.getEstimate(),
+        'influence': sum(node.getNDomchg()),
         'is_prio_child': node == model.getPrioChild(),
     }
 
@@ -210,4 +214,5 @@ def global_features(model, buffer=None):
         'ub_is_infinite': ub_is_infinite,
         'integrality_gap': integrality_gap,
         'gap_is_infinite': gap_is_infinite,
+        'plunge_depth': model.getPlungeDepth(),
     }

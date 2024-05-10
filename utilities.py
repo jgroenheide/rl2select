@@ -177,18 +177,22 @@ def extract_GNN_state(model, buffer=None):
 
 
 def extract_MLP_state(model, node1, node2):
-    siblings = node1.getParent() == node2.getParent()
-    # assert siblings  # for now, we assume nodes are always siblings
-
     max_depth = model.getDepth() + 1
     branch_state = observation.branching_features(model, node1)
     branch_state['n_inferences'] /= max_depth
 
-    branching_features = list(branch_state.values())
+    branching_features1 = list(branch_state.values())
     # branching_features = {
     #     'names': list(branch_state.keys()),
     #     'values': list(branch_state.values()),
     # }
+
+    if node1.getParent() == node2.getParent():
+        branching_features2 = branching_features1
+    else:
+        branch_state = observation.branching_features(model, node2)
+        branch_state['n_inferences'] /= max_depth
+        branching_features2 = list(branch_state.values())
 
     node_state1 = observation.node_features(model, node1)
     node_state2 = observation.node_features(model, node2)
@@ -227,4 +231,7 @@ def extract_MLP_state(model, node1, node2):
     #     'values': list(global_state.values()),
     # }
 
-    return branching_features, node_features1, node_features2, global_features
+    state1 = np.concatenate((branching_features1, node_features1, global_features), dtype=np.float32)
+    state2 = np.concatenate((branching_features2, node_features2, global_features), dtype=np.float32)
+    # return branching_features1, branching_features2, node_features1, node_features2, global_features
+    return state1, state2
