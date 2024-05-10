@@ -213,6 +213,9 @@ def extract_MLP_state(model, node1, node2):
     global_state['global_lb'] /= root_lb
     global_state['global_ub'] /= root_lb
 
+    max_plunge_depth = max(int(model.getMaxDepth() / 2), 1)
+    global_state['plunge_depth'] /= max_plunge_depth
+
     node_features1 = list(node_state1.values())
     # node_features1 = {
     #     'names': list(node_state1.keys()),

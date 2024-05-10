@@ -167,7 +167,7 @@ if __name__ == "__main__":
     else:
         raise NotImplementedError
 
-    optimizer = th.optim.Adam(model.parameters(), lr=config['lr'])
+    optimizer = th.optim.Adam(model.parameters(), lr=config['lr_train_il'])
     scheduler = Scheduler(optimizer, factor=0.2, patience=config['patience'])
 
     # --- LOG --- #

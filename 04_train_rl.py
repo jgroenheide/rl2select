@@ -122,7 +122,7 @@ if __name__ == '__main__':
     log(f"max epochs: {config['num_epochs']}", logfile)
     # log(f"batch size (train): {batch_train}", logfile)
     # log(f"batch_size (valid): {batch_valid}", logfile)
-    log(f"learning rate: {config['lr']}", logfile)
+    log(f"learning rate: {config['lr_train_rl']}", logfile)
     log(f"problem: {args.problem}", logfile)
     log(f"gpu: {args.gpu}", logfile)
     log(f"seed {args.seed}", logfile)

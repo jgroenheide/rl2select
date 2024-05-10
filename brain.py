@@ -15,7 +15,7 @@ class Brain:
         self.device = device
         self.actor = ml.MLPPolicy().to(device)
         self.actor_optimizer = th.optim.Adam(self.actor.parameters(),
-                                             lr=self.config['lr'],
+                                             lr=self.config['lr_train_rl'],
                                              maximize=True)
         self.random = np.random.RandomState(seed=self.config['seed'])
 

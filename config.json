@@ -3,14 +3,15 @@
   "gpu": -1,
   "k": 10,
 
-  "lr": 5e-3,
   "model": "MLP",
   "num_epochs": 1000,
 
+  "lr_train_il": 5e-3,
   "batch_size": 32,
   "batch_valid": 128,
   "patience": 512,
 
+  "lr_train_rl":1e-6,
   "num_agents": 4,
   "time_limit": 1500,
   "sample_rate": 0.05,
