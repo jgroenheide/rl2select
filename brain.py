@@ -14,9 +14,9 @@ class Brain:
         self.config = config
         self.device = device
         self.actor = ml.MLPPolicy().to(device)
-        self.actor_optimizer = th.optim.Adam(self.actor.parameters(),
-                                             lr=self.config['lr_train_rl'],
-                                             maximize=True)
+        self.optimizer = th.optim.Adam(self.actor.parameters(),
+                                       lr=self.config['lr_train_rl'],
+                                       maximize=True)
         self.random = np.random.RandomState(seed=self.config['seed'])
 
     def sample_actions(self, requests):
@@ -48,7 +48,7 @@ class Brain:
         # transitions = torch_geometric.loader.DataLoader(transitions, batch_size=16, shuffle=True)
         transition_loader = torch.utils.data.DataLoader(transitions, batch_size=16, shuffle=True)
 
-        self.actor_optimizer.zero_grad()
+        self.optimizer.zero_grad()
         for batch in transition_loader:
             # batch = batch.to(self.device)
             loss = th.tensor([0.0], device=self.device)
@@ -73,7 +73,7 @@ class Brain:
             stats['reinforce_loss'] += reinforce_loss.item()
             stats['entropy'] += entropy.item()
 
-        self.actor_optimizer.step()
+        self.optimizer.step()
 
         return stats
 

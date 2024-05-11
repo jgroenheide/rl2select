@@ -98,9 +98,9 @@ if __name__ == '__main__':
 
     def train_batch_generator():
         episodes_per_epoch = 5 * int(config['num_valid_instances'] / config['valid_freq'])
-        train_batches = [{'path': instance, 'seed': rng.randint(0, 2**31), 'sol': opt_sols[instance]}
-                         for instance in rng.choice(train_files, size=episodes_per_epoch, replace=True)]
         while True:
+            train_batches = [{'path': instance, 'seed': rng.randint(0, 2**31), 'sol': opt_sols[instance]}
+                             for instance in rng.choice(train_files, size=episodes_per_epoch, replace=True)]
             yield train_batches
 
 

@@ -1,8 +1,35 @@
 import datetime
+import subprocess
 import observation
 import numpy as np
 import scipy as sp
+import wandb as wb
 import pyscipopt as scip
+
+
+def sweep():
+    sweep_config = {
+        'method': "random",
+        'metric': {
+            'name': "loss",
+            'goal': "minimize",
+        },
+        'parameters': {
+            'num_epochs': {'value': 50},
+            'lr_train_rl': {
+                'distribution': 'uniform',
+                'min': 1e-6,
+                'max': 1e-2,
+            },
+        }
+    }
+
+    def train(): subprocess.run(["python3", "04_train_rl.py", "gisp", "mdp"])
+    sweep_id = wb.sweep(sweep_config, project="rl2select")
+    wb.agent(sweep_id, train, count=5)
+
+
+if __name__ == "__main__": sweep()
 
 
 def valid_seed(seed):

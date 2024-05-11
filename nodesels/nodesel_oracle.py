@@ -26,12 +26,13 @@ class NodeselOracle(NodeselEstimate):
 
         depth = self.model.getDepth()
         if depth < 0:
-            # continue normal selection
+            # choose the root node to start
             return super().nodeselect()
 
         node = self.model.getCurrentNode()
         node_number = node.getNumber()
         if node_number not in self.is_sol_node:
+            # continue normal selection
             return super().nodeselect()
         # My children will be processed; my work is done
         k = self.is_sol_node[node_number]

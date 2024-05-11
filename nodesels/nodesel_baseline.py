@@ -142,22 +142,36 @@ class NodeselEstimate(scip.Nodesel):
             # substitute new_cutoff_bound:
             #  max_bound = lower_bound + max_plunge_quot * (lower_bound + 0.2 * (cutoff_bound - lower_bound) - lower_bound)
             #  max_bound = lower_bound + max_plunge_quot * (0.2 * (cutoff_bound - lower_bound))
+            #  max_bound = lower_bound + (0.2 * max_plunge_quot) * (cutoff_bound - lower_bound)
 
             # check, if plunging is forced at the current depth
             # else calculate maximal plunging bound
-            max_bound = self.model.infinity() if plunge_depth < min_plunge_depth \
-                else lower_bound + max_plunge_quot * (cutoff_bound - lower_bound)
+            max_bound = self.model.infinity()
+            if plunge_depth >= min_plunge_depth:
+                max_bound = lower_bound + max_plunge_quot * (cutoff_bound - lower_bound)
 
             # we want to plunge again: prioritize children over siblings, and siblings over leaves,
             # but only select a child or sibling if its estimate is small enough;
             # prefer using nodes with higher node selection priority assigned by the branching rule
-            order = [self.model.getPrioChild(),
-                     self.model.getBestChild(),
-                     self.model.getPrioSibling(),
-                     self.model.getBestSibling()]
-            for selnode in order:
-                if selnode is not None and selnode.getEstimate() < max_bound:
-                    return {'selnode': selnode}
+            # order = [self.model.getPrioChild(),
+            #          self.model.getBestChild(),
+            #          self.model.getPrioSibling(),
+            #          self.model.getBestSibling()]
+            # for selnode in order:
+            #     if selnode is not None and selnode.getEstimate() < max_bound:
+            #         return {'selnode': selnode}
+            selnode = self.model.getPrioChild()
+            if selnode is not None and selnode.getEstimate() < max_bound:
+                return {'selnode': selnode}
+            selnode = self.model.getBestChild()
+            if selnode is not None and selnode.getEstimate() < max_bound:
+                return {'selnode': selnode}
+            selnode = self.model.getPrioSibling()
+            if selnode is not None and selnode.getEstimate() < max_bound:
+                return {'selnode': selnode}
+            selnode = self.model.getBestSibling()
+            if selnode is not None and selnode.getEstimate() < max_bound:
+                return {'selnode': selnode}
 
         if self.model.getNNodes() % best_node_freq == 0:
             return {'selnode': self.model.getBestboundNode()}

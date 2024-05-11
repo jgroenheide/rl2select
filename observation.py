@@ -195,7 +195,7 @@ def node_features(model, node, buffer=None):
         'relative_depth': node.getDepth(),
         'node_lb': node.getLowerbound(),
         'estimate': node.getEstimate(),
-        'influence': 0,  # sum(node.getNDomchg()),
+        'influence': sum(node.getNDomchg()),
         'is_prio_child': node == model.getPrioChild(),
     }
 
