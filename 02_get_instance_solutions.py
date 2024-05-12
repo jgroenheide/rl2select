@@ -72,7 +72,7 @@ def generate_instances(orders_queue, problem, random, transfer=False):
 
         episode = 1
         while True:
-            filename = os.path.join(tmp_dir, f'instance_{episode}.lp')
+            filename = tmp_dir + f'/instance_{episode}.lp'
             graph = gen.Graph.barabasi_albert(n_nodes, affinity, rng)
             gen.generate_indset(graph, filename)
             # blocks the process until a slot in the queue is available
@@ -88,7 +88,7 @@ def generate_instances(orders_queue, problem, random, transfer=False):
 
         episode = 1
         while True:
-            filename = os.path.join(tmp_dir, f'instance_{episode}.lp')
+            filename = tmp_dir + f'/instance_{episode}.lp'
             graph = gen.Graph.erdos_renyi(n_nodes, edge_prob, rng)
             gen.generate_general_indset(graph, filename, drop_rate, rng)
             # blocks the process until a slot in the queue is available
@@ -104,7 +104,7 @@ def generate_instances(orders_queue, problem, random, transfer=False):
 
         episode = 1
         while True:
-            filename = os.path.join(tmp_dir, f'instance_{episode}.lp')
+            filename = tmp_dir + f'/instance_{episode}.lp'
             gen.generate_capacitated_facility_location(n_customers, n_facilities, ratio, filename, rng)
             # blocks the process until a slot in the queue is available
             orders_queue.put([filename, random.integers(2 ** 31)])
@@ -119,7 +119,7 @@ def generate_instances(orders_queue, problem, random, transfer=False):
 
         episode = 1
         while True:
-            filename = os.path.join(tmp_dir, f'instance_{episode}.lp')
+            filename = tmp_dir + f'/instance_{episode}.lp'
             graph = nx.erdos_renyi_graph(n_nodes, edge_prob, seed=0, directed=True)  # seed=random.integers(2 ** 16),
             gen.generate_multicommodity_network_flow(graph, n_nodes, n_commodities, filename, rng)
             # blocks the process until a slot in the queue is available
@@ -136,7 +136,7 @@ def generate_instances(orders_queue, problem, random, transfer=False):
 
         episode = 1
         while True:
-            filename = os.path.join(tmp_dir, f'instance_{episode}.lp')
+            filename = tmp_dir + f'/instance_{episode}.lp'
             gen.generate_setcover(n_rows, n_cols, density, max_coef, filename, rng)
             # blocks the process until a slot in the queue is available
             orders_queue.put([filename, random.integers(2 ** 31)])
@@ -150,7 +150,7 @@ def generate_instances(orders_queue, problem, random, transfer=False):
 
         episode = 1
         while True:
-            filename = os.path.join(tmp_dir, f'instance_{episode}.lp')
+            filename = tmp_dir + f'/instance_{episode}.lp'
             weights, values = gen.generate_weights_and_values(n_items, rng, scheme='subset-sum')
             gen.generate_mknapsack(n_items, n_knapsacks, weights, values, filename, rng)
             # blocks the process until a slot in the queue is available
@@ -165,7 +165,7 @@ def generate_instances(orders_queue, problem, random, transfer=False):
 
         episode = 1
         while True:
-            filename = os.path.join(tmp_dir, f'instance_{episode}.lp')
+            filename = tmp_dir + f'/instance_{episode}.lp'
             gen.generate_cauctions(n_items, n_bids, filename, rng)
             # blocks the process until a slot in the queue is available
             orders_queue.put([filename, random.integers(2 ** 31)])
@@ -321,10 +321,10 @@ if __name__ == '__main__':
         type=int,
     )
     args = parser.parse_args()
-    config['num_instances'] = [('train', 40),
-                               ('valid', 20),
-                               ('test', 1),
-                               ('transfer', 1)]
+    config['num_instances'] = [('train', 4000),
+                               ('valid', 2000),
+                               ('test', 10),
+                               ('transfer', 10)]
 
     rng = np.random.default_rng(args.seed)
     if os.path.exists(f'data/{args.problem}/instances'):

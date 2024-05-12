@@ -195,11 +195,13 @@ if __name__ == "__main__":
     policies = [None, NodeselBFS()]
 
     # Learned models
-    for mode in []:
-        model = ml.MLPPolicy().to(device)
-        model.load_state_dict(th.load(f'actor/{args.problem}/{mode}.pkl'))
-        nodesel = nodesel_policy.NodeselPolicy(model, device, NodeselBFS())
-        policies.append(nodesel)
+    for mode in ['il', 'rl']:
+        model_path = f'actor/{args.problem}/{mode}.pkl'
+        if os.path.exists(model_path):
+            model = ml.MLPPolicy().to(device)
+            model.load_state_dict(th.load(model_path))
+            nodesel = nodesel_policy.NodeselPolicy(model, device, NodeselBFS())
+            policies.append(nodesel)
 
     print(f"problem: {args.problem}")
     print(f"type: {args.instance_type}")

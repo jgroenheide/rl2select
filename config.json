@@ -11,7 +11,7 @@
   "batch_valid": 128,
   "patience": 512,
 
-  "lr_train_rl": 1e-6,
+  "lr_train_rl": 5e-3,
   "num_agents": 4,
   "time_limit": 1500,
   "sample_rate": 0.05,

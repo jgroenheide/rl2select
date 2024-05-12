@@ -6,16 +6,14 @@
    (b) The state should include both nodes of the comparison.
    (c) The action should be from [0, 1] for left, right.
    (d) (Option) Choose opposite of default nodesel.
-4. Perform training   | (experiments/{problem}_{difficulty}/{seed}_{timestamp}/best_params_*-*.pkl)
-   Train IL
+4. Train model RL/IL  | (experiments/{problem}/04_train_il/{seed}_{timestamp}/best_params_il_{mode}.pkl)
+                      | (actor/{problem}/{model_id}.pkl)
    (a) MLP policy: [He: branching_features, node_features, global_features]
-   (b) GNN policy: [Gasse: variable_features, edge_features, constraint_features]
-   (c) Hybrid policy: [all of the above?]
-   Train RL
-   (a) Actor: MLP or GNN -> action [left, right]
-5. Evaluate uses [test] and [transfer] instances
-Since we only choose between the left and right child of a node, we implement a smart DFS node selector.
-This means we can encode the environment as a TreeMDP, since we maintain temporal consistency.
+4. Train model (RL)   | (experiments/{problem}/04_train_rl/{seed}_{timestamp}/best_params_rl_{mode}.pkl)
+                      | (actor/{problem}/{model_id}.pkl)
+5. Evaluate models    | (experiments/{problem}/05_evaluate/{seed}_{timestamp}/results.csv)
+   (a) uses [test] and [transfer] instances
+
 
 Compare reinforcement learning approach with imitation learning approach from Yilmaz paper
    (a) Imitation learning uses samples (state, action) that are found in the path from the root node to the k best solutions

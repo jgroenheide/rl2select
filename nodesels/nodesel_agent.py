@@ -21,6 +21,7 @@ class NodeselAgent(scip.Nodesel):
         self.tree_recorder = TreeRecorder() if sample_rate > 0 else None
         self.transitions = []
         self.penalty = 0
+        self.comps = 0
 
         self.iter_count = 0
         self.info = {
@@ -30,6 +31,7 @@ class NodeselAgent(scip.Nodesel):
         }
 
     def nodeselect(self):
+        self.comps = 0
         # calculate minimal and maximal plunging depth
         min_plunge_depth = int(self.model.getMaxDepth() / 10)
         if self.model.getNStrongbranchLPIterations() > 2*self.model.getNNodeLPIterations():
@@ -64,6 +66,7 @@ class NodeselAgent(scip.Nodesel):
         return {'selnode': self.model.getBestboundNode()}
 
     def nodecomp(self, node1, node2):
+        if self.comps != 0: return 0
         if node1.getParent() != node2.getParent(): return 0
 
         GUB = self.model.getUpperbound()
@@ -118,6 +121,7 @@ class NodeselAgent(scip.Nodesel):
         if self.iter_count > 50000 and not self.greedy:
             self.model.interruptSolve()
 
+        self.comps += 1
         return 1 if action > 0.5 else -1
 
 

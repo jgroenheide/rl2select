@@ -53,7 +53,7 @@ if __name__ == '__main__':
 
     # configure gpu
     if config['gpu'] == -1:
-        os.environ['CUDA_VISIBLE_DEVICES'] = ''
+        os.environ['CUDA_VISIBLE_DEVICES'] = ""
         device = "cpu"
     else:
         os.environ['CUDA_VISIBLE_DEVICES'] = f"{config['gpu']}"
@@ -120,8 +120,6 @@ if __name__ == '__main__':
     log(f"training instances: {len(train_files)}", logfile)
     log(f"validation instances: {len(valid_files)}", logfile)
     log(f"max epochs: {config['num_epochs']}", logfile)
-    # log(f"batch size (train): {batch_train}", logfile)
-    # log(f"batch_size (valid): {batch_valid}", logfile)
     log(f"learning rate: {config['lr_train_rl']}", logfile)
     log(f"problem: {args.problem}", logfile)
     log(f"gpu: {args.gpu}", logfile)
@@ -196,7 +194,7 @@ if __name__ == '__main__':
             if epoch_data['valid_nnodes_g'] < best_tree_size:
                 best_tree_size = epoch_data['valid_nnodes_g']
                 log("Best parameters so far (1-shifted geometric mean), saving model.", logfile)
-                brain.save(os.path.join(running_dir, f"best_params_rl-{args.mode}.pkl"))
+                brain.save(running_dir + f'/best_params_rl-{args.mode}.pkl')
 
         # TRAINING #
         if epoch < config['num_epochs']:
@@ -232,3 +230,4 @@ if __name__ == '__main__':
     v_access.set()
     t_access.set()
     agent_pool.close()
+    brain.save(f'actor/{args.problem}/rl.pkl')
