@@ -10,6 +10,7 @@ import json
 import glob
 import time
 
+import shutil
 import argparse
 import numpy as np
 import torch as th
@@ -97,7 +98,7 @@ if __name__ == '__main__':
 
 
     def train_batch_generator():
-        episodes_per_epoch = 5 * int(config['num_valid_instances'] / config['valid_freq'])
+        episodes_per_epoch = config['num_episodes_per_epoch']
         while True:
             train_batches = [{'path': instance, 'seed': rng.randint(0, 2**31), 'sol': opt_sols[instance]}
                              for instance in rng.choice(train_files, size=episodes_per_epoch, replace=True)]
@@ -115,6 +116,7 @@ if __name__ == '__main__':
     running_dir = experiment_dir + f'/{args.seed}_{timestamp}'
     os.makedirs(running_dir, exist_ok=True)
     logfile = running_dir + '/rl_train_log.txt'
+    paramfile = running_dir + f'/best_params_rl-{args.mode}.pkl'
     wb.init(project="rl2select", config=config)
 
     log(f"training instances: {len(train_files)}", logfile)
@@ -129,11 +131,11 @@ if __name__ == '__main__':
     agent_pool = AgentPool(brain, config['num_agents'], config['time_limit'], args.mode)
     agent_pool.start()
 
-    # Already start jobs
+    # Already start jobs  [CREATE]
     train_batch = next(batch_generator)
     sample_rate = config['sample_rate']
-    t_next = agent_pool.start_job(train_batch, sample_rate, greedy=False, static=True, block_policy=True)
     v_next = agent_pool.start_job(valid_batch, 0.0, greedy=True, static=True, block_policy=True)
+    t_next = agent_pool.start_job(train_batch, sample_rate, greedy=False, static=True, block_policy=True)
 
     # training loop
     start_time = time.time()
@@ -148,7 +150,7 @@ if __name__ == '__main__':
             _, v_stats, v_queue, v_access = v_next
             v_access.set()  # Give the validation agents access to the policy!
             log(f"  {len(valid_batch)} validation jobs running (preempted)", logfile)
-            # do not do anything with the stats yet, we have to wait for the jobs to finish !
+            # do not do anything with the stats yet, we have to wait for the jobs to finish!
             # v_queue.join()  # force all validation jobs to finish for debugging reasons
         else:
             log(f"  validation skipped", logfile)
@@ -157,7 +159,7 @@ if __name__ == '__main__':
             t_samples, t_stats, t_queue, t_access = t_next
             t_access.set()  # Give the training agents access to the policy!
             log(f"  {len(train_batch)} training jobs running (preempted)", logfile)
-            # do not do anything with the samples or stats yet, we have to wait for the jobs to finish !
+            # do not do anything with the samples or stats yet, we have to wait for the jobs to finish!
             # t_queue.join()  # force all training jobs to finish for debugging reasons
         else:
             log(f"  training skipped", logfile)
@@ -165,14 +167,16 @@ if __name__ == '__main__':
         # Start next epoch's jobs  [CREATE]
         # Get a new group of agents into position
         # VALIDATION #
-        if ((epoch + 1) % config['valid_freq'] == 0) or ((epoch + 1) == config['num_epochs']):
-            v_next = agent_pool.start_job(valid_batch, 0.0, greedy=True, static=True, block_policy=True)
-        # TRAINING #
-        if epoch + 1 < config['num_epochs']:
-            train_batch = next(batch_generator)
-            t_next = agent_pool.start_job(train_batch, sample_rate, greedy=False, static=True, block_policy=True)
+        if epoch + 1 <= config['num_epochs']:
+            if ((epoch + 1) % config['valid_freq'] == 0) or ((epoch + 1) == config['num_epochs']):
+                v_next = agent_pool.start_job(valid_batch, 0.0, greedy=True, static=True, block_policy=True)
+            # TRAINING #
+            if epoch + 1 < config['num_epochs']:
+                train_batch = next(batch_generator)
+                t_next = agent_pool.start_job(train_batch, sample_rate, greedy=False, static=True, block_policy=True)
 
-        # VALIDATION #  [EVALUATE]
+        # Validate the finished jobs [EVALUATE]
+        # VALIDATION #
         if (epoch % config['valid_freq'] == 0) or (epoch == config['num_epochs']):
             v_queue.join()  # wait for all validation episodes to be processed
             log("  validation jobs finished", logfile)
@@ -194,7 +198,7 @@ if __name__ == '__main__':
             if epoch_data['valid_nnodes_g'] < best_tree_size:
                 best_tree_size = epoch_data['valid_nnodes_g']
                 log("Best parameters so far (1-shifted geometric mean), saving model.", logfile)
-                brain.save(running_dir + f'/best_params_rl-{args.mode}.pkl')
+                brain.save(paramfile)
 
         # TRAINING #
         if epoch < config['num_epochs']:
@@ -226,8 +230,9 @@ if __name__ == '__main__':
         if int(elapsed_time / 86400) >= 6: break
 
     log(f"Done. Elapsed time: {elapsed_time}", logfile)
+    os.makedirs(f'actor/{args.problem}', exist_ok=True)
+    shutil.copy(paramfile, f'actor/{args.problem}/rl_{args.mode}.pkl')
 
     v_access.set()
     t_access.set()
     agent_pool.close()
-    brain.save(f'actor/{args.problem}/rl.pkl')

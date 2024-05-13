@@ -212,6 +212,109 @@ def generate_general_indset(graph, filename, alphaE2, random):
         lp_file.write("\nbinary\n" + " ".join([f"x{node}" for node in graph]))
         lp_file.write("".join([f" y{node1}_{node2}" for node1, node2 in E2]))
 
+# -------------------- KNAPSACK GENERATORS ----------------------
+def generate_weights_and_values(n_items, random, min_range=10, max_range=20, scheme='weakly correlated'):
+    """
+    Parameters
+    ----------
+    n_items : int
+        The number of items.
+    random : numpy.random.Generator
+        A random number generator.
+    min_range : int, optional
+        The lower range from which to sample the item weights. Default 10.
+    max_range : int, optional
+        The upper range from which to sample the item weights. Default 20.
+    scheme : str, optional
+        One of 'uncorrelated', 'weakly correlated', 'strongly correlated', 'subset-sum'. Default 'weakly correlated'.
+    """
+    weights = random.integers(min_range, max_range, n_items)
+
+    if scheme == 'subset-sum':
+        values = weights
+    elif scheme == 'uncorrelated':
+        values = random.integers(min_range, max_range, n_items)
+    elif scheme == 'weakly correlated':
+        values = np.apply_along_axis(lambda x: random.integers(x[0], x[1]), axis=0, arr=np.vstack([
+            np.maximum(weights - (max_range - min_range), 1), weights + (max_range - min_range)]))
+    elif scheme == 'strongly correlated':
+        values = weights + (max_range - min_range) / 10
+    else:
+        raise NotImplementedError
+    return weights, values
+
+def generate_knapsack(n_items, weights, values, filename):
+    """
+    Generation of (hard) knapsack as described by:
+        Moura, L. F. D. S. (2013). An efficient dynamic programming algorithm for the unbounded knapsack problem.
+
+    Saves it as a CPLEX LP file.
+
+    Parameters
+    ----------
+    n_items : int
+        The number of items.
+    weights : np.Array
+        List of weights
+    values : list[int]
+        List of values
+    filename : str
+        Path to the file to save.
+    """
+    capacity = 0.5 * weights.sum()
+    with open(filename, 'w') as file:
+        file.write("maximize\nOBJ:")
+        file.write(" + ".join([f"{value}x_{i + 1}"for i, value in enumerate(values)]))
+        file.write("\n\nsubject to\n")
+        file.write(" + ".join([f"{weight}x_{i + 1}" for i, weight in enumerate(weights)]) + f" <= {capacity}")
+
+        file.write("\n\ninteger\n")
+        file.write(" ".join([f"x_{i + 1}" for i in range(len(values))]))
+
+def generate_mknapsack(n_items, n_knapsacks, weights, values, filename, random):
+    """
+    Generate a Multiple Knapsack problem following a scheme among those found in section 2.1. of
+        Fukunaga, Alex S. (2011). A branch-and-bound algorithm for hard multiple knapsack problems.
+        Annals of Operations Research (184) 97-119.
+
+    Saves it as a CPLEX LP file.
+
+    Parameters
+    ----------
+    n_items : int
+        The number of items.
+    n_knapsacks : int
+        The number of knapsacks.
+    filename : str
+        Path to the file to save.
+    random : numpy.random.Generator
+        A random number generator.
+    """
+    capacities = np.zeros(n_knapsacks, dtype=int)
+    capacities[:-1] = random.integers(0.4 * weights.sum() // n_knapsacks,
+                                      0.6 * weights.sum() // n_knapsacks,
+                                      n_knapsacks - 1)
+    # Expectation capacities[-1] = 0.5 * weights.sum() // n_knapsacks
+    capacities[-1] = 0.5 * weights.sum() - capacities[:-1].sum()
+
+    with open(filename, 'w') as file:
+        file.write("maximize\nOBJ: ")
+        file.write(" + ".join([f"{values[i]}x{i + 1}_{k + 1}"
+                               for i in range(n_items)
+                               for k in range(n_knapsacks)]))
+
+        file.write("\n\nsubject to\n")
+        for k in range(n_knapsacks):
+            file.write(f"capacity_{k + 1}: " +
+                       " + ".join([f"{weights[i]}x{i + 1}_{k + 1}"
+                                   for i in range(n_items)]) +
+                       f" <= {capacities[k]}\n")
+
+        for i in range(n_items):
+            file.write(f"C_{i + 1}: " + " + ".join([f"x{i + 1}_{k + 1}" for k in range(n_knapsacks)]) + " <= 1\n")
+
+        file.write("\nbinary\n" + " ".join([f"x{i + 1}_{k + 1}" for i in range(n_items) for k in range(n_knapsacks)]))
+
 def generate_capacitated_facility_location(n_customers, n_facilities, ratio, filename, random):
     """
     Generate a Capacitated Facility Location problem following
@@ -437,113 +540,6 @@ def generate_setcover(n_rows, n_cols, density, max_coef, filename, random):
 
         file.write("\nbinary\n" + " ".join([f"x{j + 1}" for j in range(n_cols)]))
 
-# -------------------- KNAPSACK GENERATORS ----------------------
-def generate_weights_and_values(n_items, random, min_range=10, max_range=20, scheme='weakly correlated'):
-    """
-    Parameters
-    ----------
-    n_items : int
-        The number of items.
-    random : numpy.random.Generator
-        A random number generator.
-    min_range : int, optional
-        The lower range from which to sample the item weights. Default 10.
-    max_range : int, optional
-        The upper range from which to sample the item weights. Default 20.
-    scheme : str, optional
-        One of 'uncorrelated', 'weakly correlated', 'strongly correlated', 'subset-sum'. Default 'weakly correlated'.
-    """
-    weights = random.integers(min_range, max_range, n_items)
-
-    if scheme == 'subset-sum':
-        values = weights
-    elif scheme == 'uncorrelated':
-        values = random.integers(min_range, max_range, n_items)
-    elif scheme == 'weakly correlated':
-        values = np.apply_along_axis(lambda x: random.integers(x[0], x[1]), axis=0, arr=np.vstack([
-            np.maximum(weights - (max_range - min_range), 1), weights + (max_range - min_range)]))
-    elif scheme == 'strongly correlated':
-        values = weights + (max_range - min_range) / 10
-    else:
-        raise NotImplementedError
-    return weights, values
-
-def generate_knapsack(n_items, weights, values, filename):
-    """
-    Generation of (hard) knapsack as described by:
-        Moura, L. F. D. S. (2013). An efficient dynamic programming algorithm for the unbounded knapsack problem.
-
-    Saves it as a CPLEX LP file.
-
-    Parameters
-    ----------
-    n_items : int
-        The number of items.
-    weights : np.Array
-        List of weights
-    values : list[int]
-        List of values
-    filename : str
-        Path to the file to save.
-    """
-    capacity = 0.5 * weights.sum()
-    with open(filename, 'w') as file:
-        file.write('maximize\nOBJ:')
-        for i, value in enumerate(values):
-            file.write(f' +{value} x_{i + 1}')
-        file.write('\n\nsubject to\n')
-        for i, weight in enumerate(weights):
-            file.write(f' +{weight} x_{i + 1}')
-        file.write(f' <= {capacity}')
-
-        file.write('\n\ninteger\n')
-        for i in range(len(values)):
-            file.write(f' x_{i + 1}')
-
-def generate_mknapsack(n_items, n_knapsacks, weights, values, filename, random):
-    """
-    Generate a Multiple Knapsack problem following a scheme among those found in section 2.1. of
-        Fukunaga, Alex S. (2011). A branch-and-bound algorithm for hard multiple knapsack problems.
-        Annals of Operations Research (184) 97-119.
-
-    Saves it as a CPLEX LP file.
-
-    Parameters
-    ----------
-    n_items : int
-        The number of items.
-    n_knapsacks : int
-        The number of knapsacks.
-    filename : str
-        Path to the file to save.
-    random : numpy.random.Generator
-        A random number generator.
-    """
-    capacities = np.zeros(n_knapsacks, dtype=int)
-    capacities[:-1] = random.integers(0.4 * weights.sum() // n_knapsacks,
-                                      0.6 * weights.sum() // n_knapsacks,
-                                      n_knapsacks - 1)
-    # Expectation capacities[-1] = 0.5 * weights.sum() // n_knapsacks
-    capacities[-1] = 0.5 * weights.sum() - capacities[:-1].sum()
-
-    with open(filename, 'w') as file:
-        file.write("maximize\nOBJ: ")
-        file.write(" + ".join([f"{values[i]}x{i + 1}_{k + 1}"
-                               for i in range(n_items)
-                               for k in range(n_knapsacks)]))
-
-        file.write("\n\nsubject to\n")
-        for k in range(n_knapsacks):
-            file.write(f"capacity_{k + 1}: " +
-                       " + ".join([f"{weights[i]}x{i + 1}_{k + 1}"
-                                   for i in range(n_items)]) +
-                       f" <= {capacities[k]}\n")
-
-        for i in range(n_items):
-            file.write(f"C_{i + 1}: " + " + ".join([f"x{i + 1}_{k + 1}" for k in range(n_knapsacks)]) + " <= 1\n")
-
-        file.write("\nbinary\n" + " ".join([f"x{i + 1}_{k + 1}" for i in range(n_items) for k in range(n_knapsacks)]))
-
 # ------------------ COMBINATORIAL AUCTIONS ------------------------
 def generate_cauctions(n_items, n_bids, filename, random, min_value=1, max_value=100,
                        value_deviation=0.5, add_item_prob=0.7, max_n_sub_bids=5,
@@ -739,16 +735,16 @@ if __name__ == '__main__':
 
     rng = np.random.default_rng(args.seed)
     # smaller size for debugging purposes
-    config['num_instances'] = [('train', 10),
-                               ('valid', 2),
-                               ('test', 1),
-                               ('transfer', 1)]
+    config['num_instances'] = [("train", 10),
+                               ("valid", 2),
+                               ("test", 1),
+                               ("transfer", 1)]
 
     instance_dir = f'data/{args.problem}/instances'
-    if args.problem == 'indset':
+    if args.problem == "indset":
         affinity = 4
         for instance_type, num_instances in config['num_instances']:
-            n_nodes = 1000 if instance_type == 'transfer' else 500
+            n_nodes = 1000 if instance_type == "transfer" else 500
             out_dir = instance_dir + f'/{instance_type}_{n_nodes}_{affinity}'
             os.makedirs(out_dir); print(f"{num_instances} instances in {out_dir}")
             for i in trange(num_instances):
@@ -756,11 +752,11 @@ if __name__ == '__main__':
                 graph = Graph.barabasi_albert(n_nodes, affinity, rng)
                 generate_indset(graph, filename)
 
-    elif args.problem == 'gisp':
+    elif args.problem == "gisp":
         edge_prob = 0.6
         drop_rate = 0.5
         for instance_type, num_instances in config['num_instances']:
-            n_nodes = 80 if instance_type == 'transfer' else 60
+            n_nodes = 80 if instance_type == "transfer" else 60
             out_dir = instance_dir + f'/{instance_type}_{n_nodes}_{drop_rate}'
             os.makedirs(out_dir); print(f"{num_instances} instances in {out_dir}")
             for i in trange(num_instances):
@@ -768,22 +764,33 @@ if __name__ == '__main__':
                 graph = Graph.erdos_renyi(n_nodes, edge_prob, rng)
                 generate_general_indset(graph, filename, drop_rate, rng)
 
-    elif args.problem == 'cflp':
+    elif args.problem == "mkp":
+        n_items = 100
+        for instance_type, num_instances in config['num_instances']:
+            n_knapsacks = 12 if instance_type == "transfer" else 6
+            out_dir = instance_dir + f'/{instance_type}_{n_items}_{n_knapsacks}'
+            os.makedirs(out_dir); print(f"{num_instances} instances in {out_dir}")
+            for i in trange(num_instances):
+                filename = os.path.join(out_dir, f'instance_{i + 1}.lp')
+                weights, values = generate_weights_and_values(n_items, rng, scheme='subset-sum')
+                generate_mknapsack(n_items, n_knapsacks, weights, values, filename, rng)
+
+    elif args.problem == "cflp":
         n_facilities = 35
         ratio = 5
         for instance_type, num_instances in config['num_instances']:
-            n_customers = 60 if instance_type == 'transfer' else 35
+            n_customers = 60 if instance_type == "transfer" else 35
             out_dir = instance_dir + f'/{instance_type}_{n_customers}_{n_facilities}_{ratio}'
             os.makedirs(out_dir); print(f"{num_instances} instances in {out_dir}")
             for i in trange(num_instances):
                 filename = os.path.join(out_dir, f'instance_{i + 1}.lp')
                 generate_capacitated_facility_location(n_customers, n_facilities, ratio, filename, rng)
 
-    elif args.problem == 'fcmcnf':
+    elif args.problem == "fcmcnf":
         edge_prob = 0.33
         for instance_type, num_instances in config['num_instances']:
-            n_nodes = 20 if instance_type == 'transfer' else 15
-            n_commodities = 30 if instance_type == 'transfer' else 22
+            n_nodes = 20 if instance_type == "transfer" else 15
+            n_commodities = 30 if instance_type == "transfer" else 22
             out_dir = instance_dir + f'/{instance_type}_{n_nodes}_{n_commodities}_{edge_prob}'
             os.makedirs(out_dir); print(f"{num_instances} instances in {out_dir}")
             for i in trange(num_instances):
@@ -792,33 +799,22 @@ if __name__ == '__main__':
                 graph = nx.erdos_renyi_graph(n_nodes, edge_prob, seed=args.seed, directed=True)
                 generate_multicommodity_network_flow(graph, n_nodes, n_commodities, filename, rng)
 
-    elif args.problem == 'setcover':
+    elif args.problem == "setcover":
         density = 0.05
         max_coef = 100
         for instance_type, num_instances in config['num_instances']:
-            n_rows = 500 if instance_type == 'transfer' else 400
-            n_cols = 1000 if instance_type == 'transfer' else 750
+            n_rows = 500 if instance_type == "transfer" else 400
+            n_cols = 1000 if instance_type == "transfer" else 750
             out_dir = instance_dir + f'/{instance_type}_{n_rows}_{n_cols}_{density}'
             os.makedirs(out_dir); print(f"{num_instances} instances in {out_dir}")
             for i in trange(num_instances):
                 filename = os.path.join(out_dir, f'instance_{i + 1}.lp')
                 generate_setcover(n_rows, n_cols, density, max_coef, filename, rng)
 
-    elif args.problem == 'mkp':
-        n_items = 100
+    elif args.problem == "cauctions":
         for instance_type, num_instances in config['num_instances']:
-            n_knapsacks = 12 if instance_type == 'transfer' else 6
-            out_dir = instance_dir + f'/{instance_type}_{n_items}_{n_knapsacks}'
-            os.makedirs(out_dir); print(f"{num_instances} instances in {out_dir}")
-            for i in trange(num_instances):
-                filename = os.path.join(out_dir, f'instance_{i + 1}.lp')
-                weights, values = generate_weights_and_values(n_items, rng, scheme='subset-sum')
-                generate_mknapsack(n_items, n_knapsacks, weights, values, filename, rng)
-
-    elif args.problem == 'cauctions':
-        for instance_type, num_instances in config['num_instances']:
-            n_items = 200 if instance_type == 'transfer' else 100
-            n_bids = 1000 if instance_type == 'transfer' else 500
+            n_items = 200 if instance_type == "transfer" else 100
+            n_bids = 1000 if instance_type == "transfer" else 500
             out_dir = instance_dir + f'/{instance_type}_{n_items}_{n_bids}'
             os.makedirs(out_dir); print(f"{num_instances} instances in {out_dir}")
             for i in trange(num_instances):

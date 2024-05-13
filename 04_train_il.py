@@ -183,27 +183,27 @@ if __name__ == "__main__":
 
         # TRAIN
         train_loss, train_acc = process(model, train_loader, optimizer)
-        log(f"Epoch {epoch} | train loss: {train_loss:.3f} | accuracy: {train_acc:.3f}", logfile)
+        log(f"  train loss: {train_loss:.3f} | accuracy: {train_acc:.3f}", logfile)
         wb.log({'train_loss': train_loss, 'train_acc': train_acc}, step=epoch)
 
         # TEST
         valid_loss, valid_acc = process(model, valid_loader)
-        log(f"Epoch {epoch} | valid loss: {valid_loss:.3f} | accuracy: {valid_acc:.3f}", logfile)
+        log(f"  valid loss: {valid_loss:.3f} | accuracy: {valid_acc:.3f}", logfile)
         wb.log({'valid_loss': valid_loss, 'valid_acc': valid_acc}, step=epoch)
 
         elapsed_time = time.time() - start_time
         total_elapsed_time += elapsed_time
-        log(f"Epoch {epoch} | elapsed time: {elapsed_time:.3f}s | total: {total_elapsed_time:.3f}s", logfile)
+        log(f"  elapsed time: {elapsed_time:.3f}s | total: {total_elapsed_time:.3f}s", logfile)
 
         scheduler.step(valid_loss)
         if scheduler.step_result == 0:  # NEW_BEST
-            log(f"Epoch {epoch} | found best model so far, valid_loss: {valid_loss:.3f}, acc: {valid_acc:.3f}", logfile)
+            log(f"  found best model so far, valid_loss: {valid_loss:.3f}, acc: {valid_acc:.3f}", logfile)
             th.save(model.state_dict(), f'{running_dir}/best_params_il.pkl')
             best_epoch = epoch
         elif scheduler.step_result == 1:  # NO_PATIENCE
-            log(f"Epoch {epoch} | {scheduler.patience} epochs without improvement, lowering learning rate", logfile)
+            log(f"  {scheduler.patience} epochs without improvement, lowering learning rate", logfile)
         elif scheduler.step_result == 2:  # ABORT
-            log(f"Epoch {epoch} | no improvements for {2 * scheduler.patience} epochs, early stopping", logfile)
+            log(f"  no improvements for {2 * scheduler.patience} epochs, early stopping", logfile)
             break
 
     model.load_state_dict(th.load(f'{running_dir}/best_params_il.pkl'))

@@ -64,7 +64,7 @@ def generate_instances(orders_queue, problem, random, transfer=False):
     out_dir = f'data/{problem}/instances'
     os.makedirs(out_dir, exist_ok=True)
     rng = np.random.default_rng(seed=0)
-    if problem == 'indset':
+    if problem == "indset":
         affinity = 4
         n_nodes = 1000 if transfer else 500
         tmp_dir = out_dir + f'/tmp_{n_nodes}_{affinity}'
@@ -79,7 +79,7 @@ def generate_instances(orders_queue, problem, random, transfer=False):
             orders_queue.put([filename, random.integers(2 ** 31)])
             episode += 1
 
-    elif problem == 'gisp':
+    elif problem == "gisp":
         edge_prob = 0.6
         drop_rate = 0.5
         n_nodes = 80 if transfer else 60
@@ -95,7 +95,22 @@ def generate_instances(orders_queue, problem, random, transfer=False):
             orders_queue.put([filename, random.integers(2 ** 31)])
             episode += 1
 
-    elif problem == 'cflp':
+    elif problem == "mkp":
+        n_items = 100
+        n_knapsacks = 12 if transfer else 6
+        tmp_dir = out_dir + f'/tmp_{n_items}_{n_knapsacks}'
+        os.makedirs(tmp_dir, exist_ok=True)
+
+        episode = 1
+        while True:
+            filename = tmp_dir + f'/instance_{episode}.lp'
+            weights, values = gen.generate_weights_and_values(n_items, rng, scheme='subset-sum')
+            gen.generate_mknapsack(n_items, n_knapsacks, weights, values, filename, rng)
+            # blocks the process until a slot in the queue is available
+            orders_queue.put([filename, random.integers(2 ** 31)])
+            episode += 1
+
+    elif problem == "cflp":
         n_facilities = 35
         ratio = 5
         n_customers = 60 if transfer else 35
@@ -110,7 +125,7 @@ def generate_instances(orders_queue, problem, random, transfer=False):
             orders_queue.put([filename, random.integers(2 ** 31)])
             episode += 1
 
-    elif problem == 'fcmcnf':
+    elif problem == "fcmcnf":
         edge_prob = 0.33
         n_nodes = 20 if transfer else 15
         n_commodities = 30 if transfer else 22
@@ -126,7 +141,7 @@ def generate_instances(orders_queue, problem, random, transfer=False):
             orders_queue.put([filename, random.integers(2 ** 31)])
             episode += 1
 
-    elif problem == 'setcover':
+    elif problem == "setcover":
         density = 0.05
         max_coef = 100
         n_rows = 500 if transfer else 400
@@ -142,22 +157,7 @@ def generate_instances(orders_queue, problem, random, transfer=False):
             orders_queue.put([filename, random.integers(2 ** 31)])
             episode += 1
 
-    elif problem == 'mkp':
-        n_items = 100
-        n_knapsacks = 12 if transfer else 6
-        tmp_dir = out_dir + f'/tmp_{n_items}_{n_knapsacks}'
-        os.makedirs(tmp_dir, exist_ok=True)
-
-        episode = 1
-        while True:
-            filename = tmp_dir + f'/instance_{episode}.lp'
-            weights, values = gen.generate_weights_and_values(n_items, rng, scheme='subset-sum')
-            gen.generate_mknapsack(n_items, n_knapsacks, weights, values, filename, rng)
-            # blocks the process until a slot in the queue is available
-            orders_queue.put([filename, random.integers(2 ** 31)])
-            episode += 1
-
-    elif problem == 'cauctions':
+    elif problem == "cauctions":
         n_items = 200 if transfer else 100
         n_bids = 1000 if transfer else 500
         tmp_dir = out_dir + f'/tmp_{n_items}_{n_bids}'
@@ -204,7 +204,7 @@ def collect_solutions(problem, config, n_jobs, k_sols, random):
 
     instances = []
     difficulty = config['difficulty'][problem]
-    for instance_type in ['train', 'valid']:
+    for instance_type in ["train", "valid"]:
         instance_dir = f'data/{problem}/instances/{instance_type}_{difficulty}'
         instances += glob.glob(instance_dir + '/*.lp')
 
@@ -249,7 +249,7 @@ def collector(problem, config, n_jobs, k_sols, random):
     tmp_dirs = []
     obj_values = {}
     for instance_type, num_instances in config['num_instances']:
-        if instance_type == 'transfer':
+        if instance_type == "transfer":
             dispatcher.terminate()
             in_queue.join()
             while not out_queue.empty():
@@ -270,25 +270,27 @@ def collector(problem, config, n_jobs, k_sols, random):
             new_filename = instance_dir + f'/instance_{i + 1}.lp'
             os.rename(old_filename, new_filename)
 
-            if instance_type in ['train', 'valid']:
+            if instance_type in ["train", "valid"]:
                 for j in range(instance['num_sols']):
                     os.rename(f'{old_filename[:-3]}-{j + 1}.sol',
                               f'{new_filename[:-3]}-{j + 1}.sol')
-            else:  # instance_type in ['test', 'transfer']
+            else:  # instance_type in ["test", "transfer"]
                 tmp_dirs.append(tmp_dir)
 
             obj_values[new_filename] = instance['opt_sol']
+
+    # secure objective values as soon as possible to avoid losing data
+    with open(f'data/{problem}/instances/obj_values.json', "w") as f:
+        json.dump(obj_values, f)
 
     # stop all workers (hard)
     dispatcher.terminate()
     in_queue.join()
     for p in workers:
         p.terminate()
+    print(tmp_dirs)
     for tmp_dir in tmp_dirs:
-        shutil.rmtree(tmp_dir)
-
-    with open(f'data/{problem}/instances/obj_values.json', "w") as f:
-        json.dump(obj_values, f)
+        shutil.rmtree(tmp_dir, ignore_errors=True)
 
 
 if __name__ == '__main__':
@@ -321,10 +323,10 @@ if __name__ == '__main__':
         type=int,
     )
     args = parser.parse_args()
-    config['num_instances'] = [('train', 4000),
-                               ('valid', 2000),
-                               ('test', 10),
-                               ('transfer', 10)]
+    config['num_instances'] = [("train", 4),
+                               ("valid", 2),
+                               ("test", 1),
+                               ("transfer", 1)]
 
     rng = np.random.default_rng(args.seed)
     if os.path.exists(f'data/{args.problem}/instances'):
