@@ -28,6 +28,8 @@ def make_samples(in_queue, out_queue, tmp_dir, k_sols, sampling):
         Output queue in which to put solutions.
     tmp_dir : str
         Directory in which to write samples.
+    k_sols : int
+        Number of solutions to save. (Default: 10)
     """
     while True:
         # Fetch an instance...
@@ -49,7 +51,7 @@ def make_samples(in_queue, out_queue, tmp_dir, k_sols, sampling):
 
         # 1: CPU user seconds, 2: wall clock time
         m.setIntParam('timing/clocktype', 1)
-        m.setRealParam('limits/time', 300)
+        m.setRealParam('limits/time', 150)
         utilities.init_scip_params(m, seed)
 
         solutions = []
@@ -138,21 +140,21 @@ def collect_samples(instances, sample_dir, n_jobs, k_sols, max_samples, sampling
     os.makedirs(tmp_dir, exist_ok=True)
 
     # start workers
-    orders_queue = mp.Queue(2*n_jobs)
-    answers_queue = mp.Queue()
+    in_queue = mp.Queue(2 * n_jobs)
+    out_queue = mp.Queue()
 
     # temp solution for limited threads
     # removes the need for the dispatcher
-    # orders_queue = [(episode, instance, random.integers(2**31))
+    # in_queue = [(episode, instance, random.integers(2**31))
     #                 for episode, instance in enumerate(instances)]
     # removes the need for the workers
-    # make_samples(orders_queue, answers_queue, tmp_dir, k_sols, sampling)
+    # make_samples(in_queue, out_queue, tmp_dir, k_sols, sampling)
 
     workers = []
     for i in range(n_jobs):
         p = mp.Process(
             target=make_samples,
-            args=(orders_queue, answers_queue, tmp_dir, k_sols, sampling),
+            args=(in_queue, out_queue, tmp_dir, k_sols, sampling),
             daemon=True)
         workers.append(p)
         p.start()
@@ -160,7 +162,7 @@ def collect_samples(instances, sample_dir, n_jobs, k_sols, max_samples, sampling
     # start dispatcher
     dispatcher = mp.Process(
         target=send_orders,
-        args=(orders_queue, instances, random),
+        args=(in_queue, instances, random),
         daemon=True)
     dispatcher.start()
     print(f"[m {os.getpid()}] dispatcher started...")
@@ -174,7 +176,19 @@ def collect_samples(instances, sample_dir, n_jobs, k_sols, max_samples, sampling
     sample_count = 0
     action_count = [0, 0]
     while n_samples < max_samples:
-        sample = answers_queue.get()
+        try:
+            sample = out_queue.get(timeout=150)
+        # if no response is reached in time_limit seconds
+        # the solver has crashed, and the worker is dead:
+        # start a new worker to pick up the pieces.
+        except TimeoutError:
+            p = mp.Process(
+                target=make_samples,
+                args=(in_queue, out_queue, tmp_dir, k_sols, sampling),
+                daemon=True)
+            workers.append(p)
+            p.start()
+            continue
 
         # add received sample to buffer
         if sample['type'] == 'start':
@@ -228,8 +242,8 @@ def collect_samples(instances, sample_dir, n_jobs, k_sols, max_samples, sampling
 
     class_dist = [f'{x / sample_count:.2f}' for x in action_count]
     print(f"Sampling completed: (Left, Right): {class_dist}")
-    with open(sample_dir + '/class_dist.json', "w") as f:
-        json.dump([x / sample_count for x in action_count], f)
+    # with open(sample_dir + '/class_dist.json', "w") as f:
+    #     json.dump([x / sample_count for x in action_count], f)
 
 
 if __name__ == '__main__':

@@ -17,10 +17,11 @@ class NodeselOracle(NodeselEstimate):
         self.is_sol_node = {1: 0}
 
     def nodeselect(self):
-        print("*** ===================== ***")
+        # Stop sampling after 5000 nodes
         if self.model.getNNodes() > 5000:
             self.model.interruptSolve()
         if self.sampling == "Nodes":
+            print("*** ===================== ***")
             selnode = self.model.getBestNode()
             return {'selnode': selnode}
 
@@ -99,7 +100,7 @@ class NodeselOracle(NodeselEstimate):
         action = int(sol_ranks[1] < sol_ranks[0])
         both = sol_ranks[0] < max_rank and sol_ranks[1] < max_rank
         # parent_number = node.getParent().getNumber() if depth > 0 else 'ROOT' -> | Parent: {parent_number}
-        # print(f"Node1: {node1.getNumber()} | Node2: {node2.getNumber()} | Action: {['left', 'right'][action]} | Both: {both}")
+        print(f"Node1: {node1.getNumber()} | Node2: {node2.getNumber()} | Action: {['left', 'right'][action]} | Both: {both}")
 
         state = utilities.extract_MLP_state(self.model, node1, node2)
         self.sampler.create_sample(*state, action)
