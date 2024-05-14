@@ -1,5 +1,5 @@
 import queue
-import utilities
+import extract
 import numpy as np
 import torch as th
 import pyscipopt as scip
@@ -21,7 +21,6 @@ class NodeselAgent(scip.Nodesel):
         self.tree_recorder = TreeRecorder() if sample_rate > 0 else None
         self.transitions = []
         self.penalty = 0
-        self.comps = 0
 
         self.iter_count = 0
         self.info = {
@@ -31,7 +30,6 @@ class NodeselAgent(scip.Nodesel):
         }
 
     def nodeselect(self):
-        self.comps = 0
         # calculate minimal and maximal plunging depth
         min_plunge_depth = int(self.model.getMaxDepth() / 10)
         if self.model.getNStrongbranchLPIterations() > 2*self.model.getNNodeLPIterations():
@@ -49,8 +47,9 @@ class NodeselAgent(scip.Nodesel):
             lower_bound = self.model.getLowerbound()
             cutoff_bound = self.model.getCutoffbound()
 
-            # if we didn't find a solution yet, the cutoff bound is usually very bad:
-            # use only 20% of the gap as cutoff bound
+            # if we didn't find a solution yet,
+            # the cutoff bound is usually very bad:
+            # use 20% of the gap as cutoff bound
             if self.model.getNSolsFound() == 0:
                 max_plunge_quot *= 0.2
 
@@ -66,19 +65,17 @@ class NodeselAgent(scip.Nodesel):
         return {'selnode': self.model.getBestboundNode()}
 
     def nodecomp(self, node1, node2):
-        if self.comps != 0: return 0
         if node1.getParent() != node2.getParent(): return 0
 
         GUB = self.model.getUpperbound()
         if self.static and self.model.isEQ(GUB, self.opt_sol):
             self.model.interruptSolve()
 
-        state1, state2 = utilities.extract_MLP_state(self.model, node1, node2)
+        state1, state2 = extract.extract_MLP_state(self.model, node1, node2)
         state = (th.tensor(state1, dtype=th.float32),
                  th.tensor(state2, dtype=th.float32))
 
-        # send out policy queries
-        # should actions be chosen greedily w.r.t. the policy?
+        # send out policy requests
         self.requests_queue.put({'state': state,
                                  'greedy': self.greedy,
                                  'receiver': self.receiver_queue})
@@ -121,7 +118,6 @@ class NodeselAgent(scip.Nodesel):
         if self.iter_count > 50000 and not self.greedy:
             self.model.interruptSolve()
 
-        self.comps += 1
         return 1 if action > 0.5 else -1
 
 

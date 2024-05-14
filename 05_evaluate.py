@@ -27,7 +27,8 @@ class NodeselBFS(scip.Nodesel):
         super().__init__()
 
     def nodeselect(self):
-        return {"selnode": self.model.getBestboundNode()}
+        selnode = self.model.getBestboundNode()
+        return {"selnode": selnode}
 
     def __str__(self):
         return "BFS"
@@ -59,8 +60,8 @@ def evaluate(in_queue, out_queue, nodesel, static):
 
         if nodesel is not None:
             m.includeNodesel(nodesel=nodesel,
-                             name="generic name",
-                             desc='BFS node selector',
+                             name="evaluate_nodesel",
+                             desc="BFS node selector",
                              stdpriority=300000,
                              memsavepriority=300000)
 
@@ -192,16 +193,17 @@ if __name__ == "__main__":
         device = f"cuda:0"
 
     # Default: BestEstimate, BFS
-    policies = [None, NodeselBFS()]
+    nodesels = []
+    # nodesels = [None, NodeselBFS()]
 
     # Learned models
-    for mode in ['il', 'rl']:
-        model_path = f'actor/{args.problem}/{mode}.pkl'
+    for model_id in ["il", "rl_mdp"]:
+        model_path = f'actor/{args.problem}/{model_id}.pkl'
         if os.path.exists(model_path):
             model = ml.MLPPolicy().to(device)
             model.load_state_dict(th.load(model_path))
-            nodesel = nodesel_policy.NodeselPolicy(model, device, NodeselBFS())
-            policies.append(nodesel)
+            nodesel = nodesel_policy.NodeselPolicy(model, device, model_id)
+            nodesels.append(nodesel)
 
     print(f"problem: {args.problem}")
     print(f"type: {args.instance_type}")
@@ -230,15 +232,15 @@ if __name__ == "__main__":
         "cauctions": "200_1000"
     }[args.problem]
     difficulty = transfer_difficulty if args.instance_type == "transfer" else config['difficulty'][args.problem]
-    instance_dir = f"data/{args.problem}/instances/{args.instance_type}_{difficulty}"
+    instance_dir = f'data/{args.problem}/instances/{args.instance_type}_{difficulty}'
     instances = glob.glob(instance_dir + '/*.lp')
 
     timestamp = time.strftime('%Y-%m-%d--%H.%M.%S')
     experiment_dir = f'experiments/{args.problem}/05_evaluate'
     running_dir = experiment_dir + f'/{args.seed}_{timestamp}'
     os.makedirs(running_dir, exist_ok=True)
-    for nodesel in policies:
+    for nodesel in nodesels:
         for static in [True, False]:
             static_ = "static_" if static else ""
-            result_file = os.path.join(running_dir, f"{static_}{nodesel}_results.csv")
+            result_file = os.path.join(running_dir, f'{nodesel}_{static_}results.csv')
             collect_evaluation(instances, rng, args.njobs, nodesel, static, result_file)

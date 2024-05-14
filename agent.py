@@ -106,8 +106,14 @@ class PolicySampler(threading.Thread):
                 except queue.Empty:
                     break
 
-            self.brain.sample_actions(requests)
-            self.requests_queue.task_done()
+            if not requests: continue
+            receivers = [r['receiver'] for r in requests]
+            for r in requests: del r['receiver']
+
+            responses = self.brain.sample_actions(requests)
+            for receiver, response in zip(receivers, responses):
+                self.requests_queue.task_done()
+                receiver.put(response)
 
 
 class Agent(threading.Thread):

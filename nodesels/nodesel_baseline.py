@@ -1,5 +1,4 @@
 import math
-
 import pyscipopt as scip
 
 
@@ -129,8 +128,9 @@ class NodeselEstimate(scip.Nodesel):
             lower_bound = self.model.getLowerbound()
             cutoff_bound = self.model.getCutoffbound()
 
-            # if we didn't find a solution yet, the cutoff bound is usually very bad:
-            # use only 20% of the gap as cutoff bound
+            # if we didn't find a solution yet,
+            # the cutoff bound is usually very bad:
+            # use 20% of the gap as cutoff bound
             if self.model.getNSolsFound() == 0:
                 # cutoff_bound = lower_bound + 0.2 * (cutoff_bound - lower_bound)
                 max_plunge_quot *= 0.2

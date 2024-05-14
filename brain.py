@@ -20,9 +20,6 @@ class Brain:
         self.random = np.random.RandomState(seed=self.config['seed'])
 
     def sample_actions(self, requests):
-        receivers = [r['receiver'] for r in requests]
-        for r in requests: del r['receiver']
-
         # process all requests in a batch
         request_loader = th.utils.data.DataLoader(requests, batch_size=self.config['batch_size'])
 
@@ -35,8 +32,7 @@ class Brain:
                 actions += th.where(batch['greedy'], th.round(output), dist.sample())
 
         responses = th.stack(actions).tolist()
-        for receiver, response in zip(receivers, responses):
-            receiver.put(response)
+        return responses
 
     def update(self, transitions):
         stats = {'loss': 0.0, 'reinforce_loss': 0.0, 'entropy': 0.0}

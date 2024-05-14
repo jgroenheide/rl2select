@@ -7,13 +7,12 @@ import os
 import glob
 import json
 import argparse
-import extract
 import utilities
 import multiprocessing as mp
 import numpy as np
 import pyscipopt as scip
 
-from nodesels.nodesel_oracle import NodeselOracle
+from nodesels.nodesel_oracle import NodeselOracle, RandomSampler
 
 
 def make_samples(in_queue, out_queue, tmp_dir, k_sols, sampling):
@@ -59,15 +58,7 @@ def make_samples(in_queue, out_queue, tmp_dir, k_sols, sampling):
             solution = m.readSolFile(solution_file)
             solutions.append(solution)
 
-        # if sampling == 'Weighted':
-        #     sampler = extract.BaseSampler(episode, tmp_dir, out_queue)
-        # elif sampling == 'Random':
-        #     sampler = extract.RandomSampler(episode, tmp_dir, out_queue, seed)
-        # elif sampling == 'Double':
-        #     sampler = extract.DoubleSampler(episode, tmp_dir, out_queue)
-        # else:
-        #     raise ValueError
-        sampler = extract.RandomSampler(episode, tmp_dir, out_queue, seed)
+        sampler = RandomSampler(episode, tmp_dir, out_queue, seed)
         oracle = NodeselOracle(sampler, sampling, solutions)
 
         m.includeNodesel(nodesel=oracle,

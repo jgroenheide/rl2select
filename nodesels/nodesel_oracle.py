@@ -1,6 +1,62 @@
-import utilities
+import gzip
+import pickle
+import extract
+import numpy as np
 
 from nodesels.nodesel_baseline import NodeselEstimate
+
+
+class BaseSampler:
+    def __init__(self, episode, tmp_dir, out_queue):
+        self.episode = episode
+        self.tmp_dir = tmp_dir
+        self.out_queue = out_queue
+        self.action_count = [0, 0]
+        self.sample_count = 0
+
+    def write_sample(self, state1, state2, action):
+        filename = self.tmp_dir + f'/sample_{self.episode}_{self.sample_count}.pkl'
+        with gzip.open(filename, 'wb') as f:
+            f.write(pickle.dumps({
+                'state1': state1,
+                'state2': state2,
+                'action': action,
+            }))
+
+        self.out_queue.put({
+            'type': "sample",
+            'episode': self.episode,
+            'filename': filename,
+        })
+
+        self.action_count[action] += 1
+        self.sample_count += 1
+
+    def create_sample(self, state1, state2, action):
+        # If the statistics functionality is removed
+        # from write_sample(), move it here instead
+        self.write_sample(state1, state2, action)
+
+
+class RandomSampler(BaseSampler):
+    def __init__(self, episode, tmp_dir, out_queue, seed):
+        super().__init__(episode, tmp_dir, out_queue)
+        self.random = np.random.default_rng(seed)
+
+    def create_sample(self, state1, state2, action):
+        if self.random.random() < 0.5:
+            self.write_sample(state1, state2, action)
+        else:
+            self.write_sample(state2, state1, 1 - action)
+
+
+class DoubleSampler(BaseSampler):
+    def __init__(self, episode, tmp_dir, out_queue):
+        super().__init__(episode, tmp_dir, out_queue)
+
+    def create_sample(self, state1, state2, action):
+        self.write_sample(state1, state2, action)
+        self.write_sample(state2, state1, 1 - action)
 
 
 # This class contains the sampler.
@@ -14,11 +70,14 @@ class NodeselOracle(NodeselEstimate):
 
         # save parent sol rank for speedup
         # root node is always an oracle node
-        self.is_sol_node = {1: 0}
+        self.k_sols = len(solutions)
+        indices = list(range(self.k_sols))
+        self.sol_indices = {1: indices}
 
     def nodeselect(self):
         # Stop sampling after 5000 nodes
         if self.model.getNNodes() > 5000:
+            print("early stopping")
             self.model.interruptSolve()
         if self.sampling == "Nodes":
             print("*** ===================== ***")
@@ -32,77 +91,77 @@ class NodeselOracle(NodeselEstimate):
 
         node = self.model.getCurrentNode()
         node_number = node.getNumber()
-        if node_number not in self.is_sol_node:
+        if node_number not in self.sol_indices:
             # continue normal selection
             return super().nodeselect()
-        # My children will be processed; my work is done
-        k = self.is_sol_node[node_number]
-        del self.is_sol_node[node_number]
 
         if self.model.getNChildren() < 2:
             return super().nodeselect()
         _, children, _ = self.model.getOpenNodes()
 
-        max_rank = len(self.solutions)
-        sol_ranks = [max_rank, max_rank]
+        sol_ranks = [self.k_sols, self.k_sols]
         for child_index, child in enumerate(children):
+            child_number = child.getNumber()
             # If the parent node contained the optimal sol,
             # it is sufficient to only check the new bounds
             branchings = child.getParentBranchings()
-            for sol_rank, sol in enumerate(self.solutions[k:]):
+            for sol_index in self.sol_indices[node_number]:
+                sol = self.solutions[sol_index]
                 for bvar, bbound, btype in zip(*branchings):
                     if btype == 0 and sol[bvar] < bbound: break  # EXCEEDS LOWER BOUND
                     if btype == 1 and sol[bvar] > bbound: break  # EXCEEDS UPPER BOUND
                 else:                                            # SATISFIES ALL BOUNDS
-                    child_number = child.getNumber()
-                    self.is_sol_node[child_number] = k + sol_rank
-                    sol_ranks[child_index] = k + sol_rank
-                    break  # break from solutions loop
+                    if child_number not in self.sol_indices:
+                        self.sol_indices[child_number] = []
+                        sol_ranks[child_index] = sol_index
+                    self.sol_indices[child_number].append(sol_index)
+
+        # My children have been processed;
+        # My work here is done. Goodbye.
+        del self.sol_indices[node_number]
 
         # Save 'both' if both children lead to a solution
         action = int(sol_ranks[1] < sol_ranks[0])
-        both = sol_ranks[0] < max_rank and sol_ranks[1] < max_rank
-        # parent_number = node.getParent().getNumber() if depth > 0 else 'ROOT' -> | Parent: {parent_number}
+        both = sol_ranks[0] < self.k_sols and sol_ranks[1] < self.k_sols
         print(f"Node: {node_number} | Depth: {depth} | Action: {['left', 'right'][action]} | Both: {both}")
 
-        state = utilities.extract_MLP_state(self.model, *children)
+        state = extract.extract_MLP_state(self.model, *children)
         self.sampler.create_sample(*state, action)
 
         return super().nodeselect()
 
     def nodecomp(self, node1, node2):
-        print(f"Node1: {node1.getNumber()} | Node2: {node2.getNumber()}")
         if self.sampling != "Nodes":
             return super().nodecomp(node1, node2)
+        print(f"Node1: {node1.getNumber()} | Node2: {node2.getNumber()}")
 
-        max_rank = len(self.solutions)
-        sol_ranks = [max_rank, max_rank]
+        sol_ranks = [self.k_sols, self.k_sols]
         for node_index, node in enumerate([node1, node2]):
+            node_number = node.getNumber()
             # If the parent node contained the optimal sol,
             # it is sufficient to only check the new bounds
             parent_number = node.getParent().getNumber()
-            if parent_number not in self.is_sol_node: continue
-
+            if parent_number not in self.sol_indices: continue
             branchings = node.getParentBranchings()
-            for sol_rank, sol in enumerate(self.solutions):
+            for sol_index in self.sol_indices[node_number]:
+                sol = self.solutions[sol_index]
                 for bvar, bbound, btype in zip(*branchings):
                     if btype == 0 and sol[bvar] < bbound: break  # EXCEEDS LOWER BOUND
                     if btype == 1 and sol[bvar] > bbound: break  # EXCEEDS UPPER BOUND
                 else:                                            # SATISFIES ALL BOUNDS
-                    node_number = node.getNumber()
-                    self.is_sol_node[node_number] = 0
-                    sol_ranks[node_index] = sol_rank
-                    break  # break from solutions loop
+                    if node_number not in self.sol_indices:
+                        self.sol_indices[node_number] = []
+                        sol_ranks[node_index] = sol_index
+                    self.sol_indices[node_number] += sol_index
 
         if sol_ranks[0] == sol_ranks[1]:
             return super().nodecomp(node1, node2)
 
         action = int(sol_ranks[1] < sol_ranks[0])
-        both = sol_ranks[0] < max_rank and sol_ranks[1] < max_rank
-        # parent_number = node.getParent().getNumber() if depth > 0 else 'ROOT' -> | Parent: {parent_number}
+        both = sol_ranks[0] < self.k_sols and sol_ranks[1] < self.k_sols
         print(f"Node1: {node1.getNumber()} | Node2: {node2.getNumber()} | Action: {['left', 'right'][action]} | Both: {both}")
 
-        state = utilities.extract_MLP_state(self.model, node1, node2)
+        state = extract.extract_MLP_state(self.model, node1, node2)
         self.sampler.create_sample(*state, action)
 
         return super().nodecomp(node1, node2)

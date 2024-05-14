@@ -170,10 +170,10 @@ if __name__ == '__main__':
         if epoch + 1 <= config['num_epochs']:
             if ((epoch + 1) % config['valid_freq'] == 0) or ((epoch + 1) == config['num_epochs']):
                 v_next = agent_pool.start_job(valid_batch, 0.0, greedy=True, static=True, block_policy=True)
-            # TRAINING #
-            if epoch + 1 < config['num_epochs']:
-                train_batch = next(batch_generator)
-                t_next = agent_pool.start_job(train_batch, sample_rate, greedy=False, static=True, block_policy=True)
+        # TRAINING #
+        if epoch + 1 < config['num_epochs']:
+            train_batch = next(batch_generator)
+            t_next = agent_pool.start_job(train_batch, sample_rate, greedy=False, static=True, block_policy=True)
 
         # Validate the finished jobs [EVALUATE]
         # VALIDATION #
