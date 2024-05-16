@@ -11,7 +11,6 @@ import glob
 import time
 import argparse
 import model as ml
-import numpy as np
 import torch as th
 import wandb as wb
 import torch_geometric
@@ -170,7 +169,7 @@ if __name__ == "__main__":
     log(f"batch size (train): {batch_train}", logfile)
     log(f"batch_size (valid): {batch_valid}", logfile)
     log(f"max epochs: {config['num_epochs']}", logfile)
-    log(f"learning rate: {config['lr']}", logfile)
+    log(f"learning rate: {config['lr_train_il']}", logfile)
     log(f"problem: {args.problem}", logfile)
     log(f"seed {args.seed}", logfile)
     log(f"gpu: {args.gpu}", logfile)

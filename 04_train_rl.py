@@ -134,8 +134,8 @@ if __name__ == '__main__':
     # Already start jobs  [CREATE]
     train_batch = next(batch_generator)
     sample_rate = config['sample_rate']
-    v_next = agent_pool.start_job(valid_batch, 0.0, greedy=True, static=True, block_policy=True)
     t_next = agent_pool.start_job(train_batch, sample_rate, greedy=False, static=True, block_policy=True)
+    v_next = agent_pool.start_job(valid_batch, 0.0, greedy=True, static=True, block_policy=True)
 
     # training loop
     start_time = time.time()
@@ -145,15 +145,6 @@ if __name__ == '__main__':
         epoch_data = {}
 
         # Allow preempted jobs to access policy  [START]
-        # VALIDATION #
-        if (epoch % config['valid_freq'] == 0) or (epoch == config['num_epochs']):
-            _, v_stats, v_queue, v_access = v_next
-            v_access.set()  # Give the validation agents access to the policy!
-            log(f"  {len(valid_batch)} validation jobs running (preempted)", logfile)
-            # do not do anything with the stats yet, we have to wait for the jobs to finish!
-            # v_queue.join()  # force all validation jobs to finish for debugging reasons
-        else:
-            log(f"  validation skipped", logfile)
         # TRAINING #
         if epoch < config['num_epochs']:
             t_samples, t_stats, t_queue, t_access = t_next
@@ -163,19 +154,50 @@ if __name__ == '__main__':
             # t_queue.join()  # force all training jobs to finish for debugging reasons
         else:
             log(f"  training skipped", logfile)
+        # VALIDATION #
+        if (epoch % config['valid_freq'] == 0) or (epoch == config['num_epochs']):
+            _, v_stats, v_queue, v_access = v_next
+            v_access.set()  # Give the validation agents access to the policy!
+            log(f"  {len(valid_batch)} validation jobs running (preempted)", logfile)
+            # do not do anything with the stats yet, we have to wait for the jobs to finish!
+            # v_queue.join()  # force all validation jobs to finish for debugging reasons
+        else:
+            log(f"  validation skipped", logfile)
 
         # Start next epoch's jobs  [CREATE]
         # Get a new group of agents into position
-        # VALIDATION #
-        if epoch + 1 <= config['num_epochs']:
-            if ((epoch + 1) % config['valid_freq'] == 0) or ((epoch + 1) == config['num_epochs']):
-                v_next = agent_pool.start_job(valid_batch, 0.0, greedy=True, static=True, block_policy=True)
         # TRAINING #
         if epoch + 1 < config['num_epochs']:
             train_batch = next(batch_generator)
             t_next = agent_pool.start_job(train_batch, sample_rate, greedy=False, static=True, block_policy=True)
+        # VALIDATION #
+        if epoch + 1 <= config['num_epochs']:
+            if ((epoch + 1) % config['valid_freq'] == 0) or ((epoch + 1) == config['num_epochs']):
+                v_next = agent_pool.start_job(valid_batch, 0.0, greedy=True, static=True, block_policy=True)
 
         # Validate the finished jobs [EVALUATE]
+        # TRAINING #
+        if epoch < config['num_epochs']:
+            t_queue.join()  # wait for all training episodes to be processed
+            log("  training jobs finished", logfile)
+            log(f"  {len(t_samples)} training samples collected", logfile)
+            t_losses = brain.update(t_samples)
+            log("  model parameters were updated", logfile)
+
+            t_nnodess = [s['info']['nnodes'] for s in t_stats]
+            t_lpiterss = [s['info']['lpiters'] for s in t_stats]
+            t_times = [s['info']['time'] for s in t_stats]
+
+            epoch_data.update({
+                'train_nnodes_g': gmean(t_nnodess),
+                'train_nnodes': np.mean(t_nnodess),
+                'train_time': np.mean(t_times),
+                'train_lpiters': np.mean(t_lpiterss),
+                'train_nsamples': len(t_samples),
+                'train_loss': t_losses['loss'],
+                'train_reinforce_loss': t_losses['reinforce_loss'],
+                'train_entropy': t_losses['entropy'],
+            })
         # VALIDATION #
         if (epoch % config['valid_freq'] == 0) or (epoch == config['num_epochs']):
             v_queue.join()  # wait for all validation episodes to be processed
@@ -199,29 +221,6 @@ if __name__ == '__main__':
                 best_tree_size = epoch_data['valid_nnodes_g']
                 log("Best parameters so far (1-shifted geometric mean), saving model.", logfile)
                 brain.save(paramfile)
-
-        # TRAINING #
-        if epoch < config['num_epochs']:
-            t_queue.join()  # wait for all training episodes to be processed
-            log("  training jobs finished", logfile)
-            log(f"  {len(t_samples)} training samples collected", logfile)
-            t_losses = brain.update(t_samples)
-            log("  model parameters were updated", logfile)
-
-            t_nnodess = [s['info']['nnodes'] for s in t_stats]
-            t_lpiterss = [s['info']['lpiters'] for s in t_stats]
-            t_times = [s['info']['time'] for s in t_stats]
-
-            epoch_data.update({
-                'train_nnodes_g': gmean(t_nnodess),
-                'train_nnodes': np.mean(t_nnodess),
-                'train_time': np.mean(t_times),
-                'train_lpiters': np.mean(t_lpiterss),
-                'train_nsamples': len(t_samples),
-                'train_loss': t_losses['loss'],
-                'train_reinforce_loss': t_losses['reinforce_loss'],
-                'train_entropy': t_losses['entropy'],
-            })
 
         wb.log(epoch_data, step=epoch)
 

@@ -213,7 +213,7 @@ def collect_solutions(problem, config, n_jobs, k_sols, random):
 
     for instance in instances:
         in_queue.put([instance, random.integers(2**31)])
-    print(f'{len(instances)} instances on queue.')
+    print(f"{len(instances)} instances on queue.")
 
     in_queue.join()
     obj_values = {}

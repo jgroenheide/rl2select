@@ -28,7 +28,7 @@ class NodeselBFS(scip.Nodesel):
 
     def nodeselect(self):
         selnode = self.model.getBestboundNode()
-        return {"selnode": selnode}
+        return {'selnode': selnode}
 
     def __str__(self):
         return "BFS"
@@ -101,7 +101,7 @@ def evaluate(in_queue, out_queue, nodesel, static):
         m.freeProb()
 
 
-def collect_evaluation(instances, random, n_jobs, nodesel, static, result_file):
+def collect_evaluation(instances, seed, n_jobs, nodesel, static, result_file):
     """
     Runs branch-and-bound episodes on the given set of instances
     with the provided node selector and settings.
@@ -120,8 +120,8 @@ def collect_evaluation(instances, random, n_jobs, nodesel, static, result_file):
     in_queue = mp.Queue()
     out_queue = mp.Queue()
     for instance in instances:
-        in_queue.put([instance, random.integers(2 ** 31)])
-    print(f'{len(instances)} instances on queue.')
+        in_queue.put([instance, seed])
+    print(f"{len(instances)} instances on queue.")
 
     workers = []
     for i in range(n_jobs):
@@ -182,8 +182,6 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    rng = np.random.default_rng(args.seed)
-
     ### PYTORCH SETUP ###
     if args.gpu == -1:
         os.environ['CUDA_VISIBLE_DEVICES'] = ''
@@ -193,8 +191,8 @@ if __name__ == "__main__":
         device = f"cuda:0"
 
     # Default: BestEstimate, BFS
-    nodesels = []
-    # nodesels = [None, NodeselBFS()]
+    # nodesels = []
+    nodesels = [None, NodeselBFS()]
 
     # Learned models
     for model_id in ["il", "rl_mdp"]:
@@ -243,4 +241,4 @@ if __name__ == "__main__":
         for static in [True, False]:
             static_ = "static_" if static else ""
             result_file = os.path.join(running_dir, f'{nodesel}_{static_}results.csv')
-            collect_evaluation(instances, rng, args.njobs, nodesel, static, result_file)
+            collect_evaluation(instances, args.seed, args.njobs, nodesel, static, result_file)
