@@ -223,10 +223,10 @@ if __name__ == "__main__":
     transfer_difficulty = {
         "indset": "1000_4",
         "gisp": "80_0.5",
+        "mkp": "100_12",
         "cflp": "60_35_5",
         "fcmcnf": "30_45_100",
         "setcover": "500_1000_0.05",
-        "mknapsack": "100_12",
         "cauctions": "200_1000"
     }[args.problem]
     difficulty = transfer_difficulty if args.instance_type == "transfer" else config['difficulty'][args.problem]
