@@ -55,7 +55,7 @@ def evaluate(in_queue, out_queue, nodesel, static):
 
         # 1: CPU user seconds, 2: wall clock time
         m.setIntParam('timing/clocktype', 1)
-        m.setRealParam('limits/time', 3600)
+        m.setRealParam('limits/time', 150)
         utilities.init_scip_params(m, seed, static)
 
         if nodesel is not None:
@@ -137,7 +137,19 @@ def collect_evaluation(instances, seed, n_jobs, nodesel, static, result_file):
         writer.writeheader()
 
         for _ in trange(len(instances)):
-            answer = out_queue.get()
+            try:
+                answer = out_queue.get(timeout=150)
+            # if no response is reached in time_limit seconds
+            # the solver has crashed, and the worker is dead:
+            # start a new worker to pick up the pieces.
+            except TimeoutError:
+                p = mp.Process(
+                    target=evaluate,
+                    args=(in_queue, out_queue, nodesel, static),
+                    daemon=True)
+                workers.append(p)
+                p.start()
+                continue
             writer.writerow(answer)
             csvfile.flush()
 
