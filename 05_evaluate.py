@@ -5,11 +5,13 @@
 # Usage:                                                                        #
 # python 05_evaluate.py <type> -g <cudaId>                                      #
 # * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * #
-import glob
+
 import os
 import csv
 import json
 import time
+import glob
+import queue
 import argparse
 import utilities
 import model as ml
@@ -142,7 +144,7 @@ def collect_evaluation(instances, seed, n_jobs, nodesel, static, result_file):
             # if no response is reached in time_limit seconds
             # the solver has crashed, and the worker is dead:
             # start a new worker to pick up the pieces.
-            except TimeoutError:
+            except queue.Empty:
                 p = mp.Process(
                     target=evaluate,
                     args=(in_queue, out_queue, nodesel, static),
