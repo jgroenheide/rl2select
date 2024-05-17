@@ -43,6 +43,7 @@ def solve_instance(in_queue, out_queue, k_sols):
         m.optimize()
 
         # Statistics to help tune new problems
+        # print(f"Status: {m.getStatus()}")
         # print(f"NNodes: {m.getNNodes()}")
         # print(f"NSols: {m.getNBestSolsFound()}")
         # print(f"MaxDepth: {m.getMaxDepth()}")
@@ -324,7 +325,7 @@ if __name__ == '__main__':
         type=int,
     )
     args = parser.parse_args()
-    # config['num_instances'] = [("train", 4),
+    # config['num_instances'] = [("train", 5),
     #                            ("valid", 2),
     #                            ("test", 1),
     #                            ("transfer", 1)]

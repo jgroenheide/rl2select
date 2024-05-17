@@ -299,21 +299,21 @@ def generate_mknapsack(n_items, n_knapsacks, weights, values, filename, random):
 
     with open(filename, 'w') as file:
         file.write("maximize\nOBJ: ")
-        file.write(" + ".join([f"{values[i]}x{i + 1}_{k + 1}"
+        file.write(" + ".join([f"{values[i]}x_{i + 1}_{k + 1}"
                                for i in range(n_items)
                                for k in range(n_knapsacks)]))
 
         file.write("\n\nsubject to\n")
         for k in range(n_knapsacks):
             file.write(f"capacity_{k + 1}: " +
-                       " + ".join([f"{weights[i]}x{i + 1}_{k + 1}"
+                       " + ".join([f"{weights[i]}x_{i + 1}_{k + 1}"
                                    for i in range(n_items)]) +
                        f" <= {capacities[k]}\n")
 
         for i in range(n_items):
-            file.write(f"C_{i + 1}: " + " + ".join([f"x{i + 1}_{k + 1}" for k in range(n_knapsacks)]) + " <= 1\n")
+            file.write(f"C_{i + 1}: " + " + ".join([f"x_{i + 1}_{k + 1}" for k in range(n_knapsacks)]) + " <= 1\n")
 
-        file.write("\nbinary\n" + " ".join([f"x{i + 1}_{k + 1}" for i in range(n_items) for k in range(n_knapsacks)]))
+        file.write("\nbinary\n" + " ".join([f"x_{i + 1}_{k + 1}" for i in range(n_items) for k in range(n_knapsacks)]))
 
 def generate_capacitated_facility_location(n_customers, n_facilities, ratio, filename, random):
     """
@@ -338,7 +338,7 @@ def generate_capacitated_facility_location(n_customers, n_facilities, ratio, fil
         A random number generator.
     """
     demands = random.integers(5, 35, size=n_customers)
-    capacities = random.integers(16, 64, size=n_facilities)  # original: 10-160
+    capacities = random.integers(10, 160, size=n_facilities)
     fixed_costs = (random.integers(100, 110, size=n_facilities) * np.sqrt(capacities) +
                    random.integers(90, size=n_facilities)).astype(int)
 
@@ -350,17 +350,18 @@ def generate_capacitated_facility_location(n_customers, n_facilities, ratio, fil
     capacities = capacities.astype(int)
 
     # transportation costs
-    c_x = random.random(n_customers)
-    c_y = random.random(n_customers)
+    c_x = random.random(n_customers).reshape((-1, 1))
+    c_y = random.random(n_customers).reshape((-1, 1))
 
-    f_x = random.random(n_customers)
-    f_y = random.random(n_customers)
+    f_x = random.random((n_facilities,))
+    f_y = random.random((n_facilities,))
 
     trans_costs = np.sqrt((c_x - f_x) ** 2 + (c_y - f_y) ** 2) * 10 * demands.reshape((-1, 1))
+    trans_costs = trans_costs.astype(int)
 
     # write problem
     with open(filename, 'w') as file:
-        file.write("minimize\nobj: ")
+        file.write("minimize\nOBJ: ")
         file.write(" + ".join([f"{trans_costs[i, j]}x_{i + 1}_{j + 1}"
                                for i in range(n_customers)
                                for j in range(n_facilities)] +
@@ -389,10 +390,10 @@ def generate_capacitated_facility_location(n_customers, n_facilities, ratio, fil
                 file.write(f"affectation_{i + 1}_{j + 1}: x_{i + 1}_{j + 1} - y_{j + 1} <= 0\n")
 
         file.write("\nbinary\n")
-        file.write(" ".join([f"y_{j + 1}"
-                             for j in range(n_facilities)] +
-                            [f"x_{i + 1}_{j + 1}"
+        file.write(" ".join([f"x_{i + 1}_{j + 1}"
                              for i in range(n_customers)
+                             for j in range(n_facilities)] +
+                            [f"y_{j + 1}"
                              for j in range(n_facilities)]))
 
 def generate_multicommodity_network_flow(graph, n_nodes, n_commodities, filename, random):
@@ -444,11 +445,10 @@ def generate_multicommodity_network_flow(graph, n_nodes, n_commodities, filename
         file.write("minimize\nOBJ: ")
         # demand_k * variable_cost * fraction of demand over edge (i, j) for commodity k
         file.write(" + ".join([f"{demands[k] * adj_mat[i][j][0]}x_{i + 1}_{j + 1}_{k + 1}"
-                               for i, j in graph.edges for k in range(n_commodities)]))
-        # fixed_cost * whether edge (i, j) is active
-        file.write("".join([f" + {adj_mat[i][j][1]}y_{i + 1}_{j + 1}" for i, j in graph.edges]))
+                               for i, j in graph.edges for k in range(n_commodities)] +
+                              [f"{adj_mat[i][j][1]}y_{i + 1}_{j + 1}" for i, j in graph.edges]))
 
-        file.write("\nsubject to\n")
+        file.write("\n\nsubject to\n")
         for i in range(n_nodes):
             for k in range(n_commodities):
                 # 1 if source, -1 if sink, 0 if else
