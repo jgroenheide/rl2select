@@ -40,14 +40,12 @@ def solve_instance(in_queue, out_queue, k_sols):
         m = scip.Model()
         m.hideOutput()
         m.readProblem(instance)
-        # added to see the effect
-        # utilities.init_scip_params(m, seed)
         m.optimize()
 
         # Statistics to help tune new problems
-        print(f"NNodes: {m.getNNodes()}")
-        print(f"NSols: {m.getNBestSolsFound()}")
-        print(f"MaxDepth: {m.getMaxDepth()}")
+        # print(f"NNodes: {m.getNNodes()}")
+        # print(f"NSols: {m.getNBestSolsFound()}")
+        # print(f"MaxDepth: {m.getMaxDepth()}")
 
         if m.getStatus() == "optimal" and m.getNNodes() > 100:
             # retrieve and save solutions to individual files
@@ -326,10 +324,10 @@ if __name__ == '__main__':
         type=int,
     )
     args = parser.parse_args()
-    config['num_instances'] = [("train", 4),
-                               ("valid", 2),
-                               ("test", 1),
-                               ("transfer", 1)]
+    # config['num_instances'] = [("train", 4),
+    #                            ("valid", 2),
+    #                            ("test", 1),
+    #                            ("transfer", 1)]
 
     rng = np.random.default_rng(args.seed)
     if os.path.exists(f'data/{args.problem}/instances'):

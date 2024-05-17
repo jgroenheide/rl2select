@@ -1,22 +1,24 @@
-import torch
+import torch as th
 import torch.nn.functional as F
 import torch_geometric
 
 
-class MLPPolicy(torch.nn.Module):
+class MLPPolicy(th.nn.Module):
 
     def __init__(self):
         super().__init__()
-        self.model = torch.nn.Sequential(torch.nn.Linear(16, 32),
-                                         torch.nn.LeakyReLU(),
-                                         torch.nn.Linear(32, 1))
+        self.model = th.nn.Sequential(th.nn.Linear(16, 64),
+                                      th.nn.LeakyReLU(),
+                                      th.nn.Linear(64, 1))
 
-    def forward(self, n0, n1):
-        s0, s1 = self.model(n0), self.model(n1)
-        return torch.sigmoid(-s0 + s1)
+    def forward(self, node1, node2):
+        score1 = self.model(node1)
+        score2 = self.model(node2)
+        diff = -score1 + score2
+        return th.sigmoid(diff)
 
 
-class GNNPolicy(torch.nn.Module):
+class GNNPolicy(th.nn.Module):
     def __init__(self):
         super().__init__()
 
@@ -32,28 +34,28 @@ class GNNPolicy(torch.nn.Module):
         var_nfeats = 6
 
         # CONSTRAINT EMBEDDING
-        self.cons_embedding = torch.nn.Sequential(
-            torch.nn.LayerNorm(cons_nfeats),
-            torch.nn.Linear(cons_nfeats, emb_size),
-            torch.nn.ReLU(),
+        self.cons_embedding = th.nn.Sequential(
+            th.nn.LayerNorm(cons_nfeats),
+            th.nn.Linear(cons_nfeats, emb_size),
+            th.nn.ReLU(),
         )
 
         # EDGE EMBEDDING
-        self.edge_embedding = torch.nn.Sequential(
-            torch.nn.LayerNorm(edge_nfeats),
+        self.edge_embedding = th.nn.Sequential(
+            th.nn.LayerNorm(edge_nfeats),
         )
 
         # VARIABLE EMBEDDING
-        self.var_embedding = torch.nn.Sequential(
-            torch.nn.LayerNorm(var_nfeats),
-            torch.nn.Linear(var_nfeats, emb_size),
-            torch.nn.ReLU(),
+        self.var_embedding = th.nn.Sequential(
+            th.nn.LayerNorm(var_nfeats),
+            th.nn.Linear(var_nfeats, emb_size),
+            th.nn.ReLU(),
         )
 
-        self.bounds_embedding = torch.nn.Sequential(
-            torch.nn.LayerNorm(2),
-            torch.nn.Linear(2, 2),
-            torch.nn.ReLU(),
+        self.bounds_embedding = th.nn.Sequential(
+            th.nn.LayerNorm(2),
+            th.nn.Linear(2, 2),
+            th.nn.ReLU(),
         )
 
         # double check
@@ -66,10 +68,10 @@ class GNNPolicy(torch.nn.Module):
     def forward(self, batch, inv=False, epsilon=0.01):
         # create constraint masks. Constraints associated with variables
         # for which at least one of their bounds have changed
-        # graph1 edges
+        # graph2 edges
 
         try:
-            graph0 = (batch.constraint_features_s,
+            graph1 = (batch.constraint_features_s,
                       batch.edge_index_s,
                       batch.edge_attr_s,
                       batch.variable_features_s,
@@ -77,7 +79,7 @@ class GNNPolicy(torch.nn.Module):
                       batch.constraint_features_s_batch,
                       batch.variable_features_s_batch)
 
-            graph1 = (batch.constraint_features_t,
+            graph2 = (batch.constraint_features_t,
                       batch.edge_index_t,
                       batch.edge_attr_t,
                       batch.variable_features_t,
@@ -86,25 +88,25 @@ class GNNPolicy(torch.nn.Module):
                       batch.variable_features_t_batch)
 
         except AttributeError:
-            graph0 = (batch.constraint_features_s,
+            graph1 = (batch.constraint_features_s,
                       batch.edge_index_s,
                       batch.edge_attr_s,
                       batch.variable_features_s,
                       batch.bounds_s)
 
-            graph1 = (batch.constraint_features_t,
+            graph2 = (batch.constraint_features_t,
                       batch.edge_index_t,
                       batch.edge_attr_t,
                       batch.variable_features_t,
                       batch.bounds_t)
 
         if inv:
-            graph0, graph1 = graph1, graph0
+            graph1, graph2 = graph2, graph1
 
         # concatenation of averages variable/constraint features after conv
-        score0 = self.forward_graph(*graph0)
         score1 = self.forward_graph(*graph1)
-        return torch.sigmoid(-score0 + score1)
+        score2 = self.forward_graph(*graph2)
+        return th.sigmoid(-score1 + score2)
 
     def forward_graph(self, constraint_features, edge_indices, edge_features,
                       variable_features, bbounds, constraint_batch=None, variable_batch=None):
@@ -115,7 +117,7 @@ class GNNPolicy(torch.nn.Module):
         edge_features = self.edge_embedding(edge_features)
         bbounds = self.bounds_embedding(bbounds)
 
-        edge_indices_reversed = torch.stack([edge_indices[1], edge_indices[0]], dim=0)
+        edge_indices_reversed = th.stack([edge_indices[1], edge_indices[0]], dim=0)
 
         for conv in self.convs:
             # Var to cons
@@ -141,9 +143,9 @@ class GNNPolicy(torch.nn.Module):
                                                               variable_features,
                                                               variable_features)[0]
         else:
-            constraint_avg = torch.mean(constraint_features, dim=0, keepdim=True)
-            variable_avg = torch.mean(variable_features, dim=0, keepdim=True)
+            constraint_avg = th.mean(constraint_features, dim=0, keepdim=True)
+            variable_avg = th.mean(variable_features, dim=0, keepdim=True)
 
-        return (torch.linalg.norm(variable_avg, dim=1) +
-                torch.linalg.norm(constraint_avg, dim=1) +
-                torch.linalg.norm(bbounds, dim=1))
+        return (th.linalg.norm(variable_avg, dim=1) +
+                th.linalg.norm(constraint_avg, dim=1) +
+                th.linalg.norm(bbounds, dim=1))

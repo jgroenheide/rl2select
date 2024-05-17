@@ -61,4 +61,5 @@ class NodeselPolicy(scip.Nodesel):
         state = (th.tensor(state1, dtype=th.float32),
                  th.tensor(state2, dtype=th.float32))
 
-        return self.policy(*state)
+        with th.inference_mode():
+            return self.policy(*state)

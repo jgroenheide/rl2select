@@ -6,6 +6,7 @@
 import os
 import glob
 import json
+import queue
 import argparse
 import utilities
 import multiprocessing as mp
@@ -169,10 +170,10 @@ def collect_samples(instances, sample_dir, n_jobs, k_sols, max_samples, sampling
     while n_samples < max_samples:
         try:
             sample = out_queue.get(timeout=150)
-        # if no response is reached in time_limit seconds
-        # the solver has crashed, and the worker is dead:
+        # if no response is given in time_limit seconds,
+        # the solver has crashed and the worker is dead:
         # start a new worker to pick up the pieces.
-        except TimeoutError:
+        except queue.Empty:
             p = mp.Process(
                 target=make_samples,
                 args=(in_queue, out_queue, tmp_dir, k_sols, sampling),

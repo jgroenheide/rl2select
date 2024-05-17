@@ -141,8 +141,8 @@ def collect_evaluation(instances, seed, n_jobs, nodesel, static, result_file):
         for _ in trange(len(instances)):
             try:
                 answer = out_queue.get(timeout=150)
-            # if no response is reached in time_limit seconds
-            # the solver has crashed, and the worker is dead:
+            # if no response is given in time_limit seconds,
+            # the solver has crashed and the worker is dead:
             # start a new worker to pick up the pieces.
             except queue.Empty:
                 p = mp.Process(
@@ -205,8 +205,8 @@ if __name__ == "__main__":
         device = f"cuda:0"
 
     # Default: BestEstimate, BFS
-    # nodesels = []
-    nodesels = [None, NodeselBFS()]
+    nodesels = []
+    # nodesels = [None, NodeselBFS()]
 
     # Learned models
     for model_id in ["il", "rl_mdp"]:
@@ -214,6 +214,7 @@ if __name__ == "__main__":
         if os.path.exists(model_path):
             model = ml.MLPPolicy().to(device)
             model.load_state_dict(th.load(model_path))
+            model.eval()
             nodesel = nodesel_policy.NodeselPolicy(model, device, model_id)
             nodesels.append(nodesel)
 
@@ -252,7 +253,7 @@ if __name__ == "__main__":
     running_dir = experiment_dir + f'/{args.seed}_{timestamp}'
     os.makedirs(running_dir, exist_ok=True)
     for nodesel in nodesels:
-        for static in [True, False]:
+        for static in [False]:  # True,
             static_ = "static_" if static else ""
             result_file = os.path.join(running_dir, f'{nodesel}_{static_}results.csv')
             collect_evaluation(instances, args.seed, args.njobs, nodesel, static, result_file)
