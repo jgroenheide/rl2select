@@ -158,10 +158,8 @@ def branching_features(model, node, buffer=None):
     bound_changes = node.getDomchg().getBoundchgs()
     bound_change = bound_changes[0]
     branch_var = bound_change.getVar()
+    # preferred branch direction is always AUTO
     branch_dir = branch_var.getBranchDirection()
-
-    # if this activates, it might be worth adding prio
-    assert branch_dir != 0 and branch_dir != 1
 
     branchbound = bound_change.getNewBound()
     var_rootsol = branch_var.getRootSol()
@@ -178,21 +176,23 @@ def branching_features(model, node, buffer=None):
                     else model.getVarAvgInferences(branch_var, 0))
 
     return {
-        # "prio_down": branch_dir == 0,
-        # "prio_up": branch_dir == 1,
-        "bound_lp_diff": bound_lp_diff,
-        "root_lp_diff": root_lp_diff,
-        "pseudo_cost": pseudo_cost,
-        "n_inferences": n_inferences,
+        # 'prio_down': branch_dir == 0,
+        # 'prio_up': branch_dir == 1,  # these never activate
+        'bound_lp_diff': bound_lp_diff,
+        'root_lp_diff': root_lp_diff,
+        'pseudo_cost': pseudo_cost,
+        'n_inferences': n_inferences,
     }
 
 
 def node_features(model, node, buffer=None):
+    relative_depth = node.getDepth() / (model.getMaxDepth() + 1)
     return {
         # 'type_child': node.getType() == 3,  # always true for smartDFS
         # 'type_sibling': node.getType() == 2,
         # 'type_leaf': node.getType() == 4,
-        'relative_depth': node.getDepth(),
+        'relative_bound': None,
+        'relative_depth': relative_depth,
         'node_lb': node.getLowerbound(),
         'estimate': node.getEstimate(),
         'influence': sum(node.getNDomchg()),
@@ -208,11 +208,14 @@ def global_features(model, buffer=None):
     integrality_gap = model.getGap()
     gap_is_infinite = model.isInfinity(integrality_gap)
 
+    max_plunge_depth = max(int(model.getMaxDepth() / 2), 1)
+    plunge_depth = model.getPlungeDepth() / max_plunge_depth
+
     return {
         'global_lb': global_lb,
         'global_ub': global_ub,
-        'ub_is_infinite': ub_is_infinite,
+        'ub_is_infinite': ub_is_infinite,  # always False
         'integrality_gap': integrality_gap,
-        'gap_is_infinite': gap_is_infinite,
-        'plunge_depth': model.getPlungeDepth(),
+        'gap_is_infinite': gap_is_infinite,  # always False
+        'plunge_depth': plunge_depth,
     }

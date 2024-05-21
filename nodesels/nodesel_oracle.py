@@ -79,63 +79,72 @@ class NodeselOracle(NodeselEstimate):
         if self.model.getNNodes() > 5000:
             print("early stopping")
             self.model.interruptSolve()
-        if self.sampling == "Nodes":
-            print("*** ===================== ***")
-            selnode = self.model.getBestNode()
-            return {'selnode': selnode}
+        if self.sampling == "Children":
+            self.model.getBestChild()
+        elif self.sampling == "Nodes":
+            self.model.getBestNode()
+        selnode = super().nodeselect()
+        print(f"Chose: {selnode['selnode'].getNumber()}")
+        print("*** ====================== ***")
+        return selnode
 
-        depth = self.model.getDepth()
-        if depth < 0:
-            # choose the root node to start
-            return super().nodeselect()
-
-        node = self.model.getCurrentNode()
-        node_number = node.getNumber()
-        if node_number not in self.sol_indices:
-            # continue normal selection
-            return super().nodeselect()
-
-        if self.model.getNChildren() < 2:
-            return super().nodeselect()
-        _, children, _ = self.model.getOpenNodes()
-
-        sol_ranks = [self.k_sols, self.k_sols]
-        for child_index, child in enumerate(children):
-            child_number = child.getNumber()
-            # If the parent node contained the optimal sol,
-            # it is sufficient to only check the new bounds
-            branchings = child.getParentBranchings()
-            for sol_index in self.sol_indices[node_number]:
-                sol = self.solutions[sol_index]
-                for bvar, bbound, btype in zip(*branchings):
-                    if btype == 0 and sol[bvar] < bbound: break  # EXCEEDS LOWER BOUND
-                    if btype == 1 and sol[bvar] > bbound: break  # EXCEEDS UPPER BOUND
-                else:                                            # SATISFIES ALL BOUNDS
-                    if child_number not in self.sol_indices:
-                        self.sol_indices[child_number] = []
-                        sol_ranks[child_index] = sol_index
-                    self.sol_indices[child_number].append(sol_index)
-
-        # My children have been processed;
-        # My work here is done. Goodbye.
-        del self.sol_indices[node_number]
-
-        # Save 'both' if both children lead to a solution
-        action = int(sol_ranks[1] < sol_ranks[0])
-        both = sol_ranks[0] < self.k_sols and sol_ranks[1] < self.k_sols
-        print(f"Node: {node_number} | Depth: {depth} | Action: {['left', 'right'][action]} | Both: {both}")
-
-        state = extract.extract_MLP_state(self.model, *children)
-        self.sampler.create_sample(*state, action)
-
-        return super().nodeselect()
+        # depth = self.model.getDepth()
+        # if depth < 0:
+        #     # choose the root node to start
+        #     return super().nodeselect()
+        #
+        # node = self.model.getCurrentNode()
+        # node_number = node.getNumber()
+        # if node_number not in self.sol_indices:
+        #     # continue normal selection
+        #     return super().nodeselect()
+        #
+        # if self.model.getNChildren() < 2:
+        #     return super().nodeselect()
+        # _, children, _ = self.model.getOpenNodes()
+        #
+        # sol_ranks = [self.k_sols, self.k_sols]
+        # for child_index, child in enumerate(children):
+        #     child_number = child.getNumber()
+        #     # If the parent node contained the optimal sol,
+        #     # it is sufficient to only check the new bounds
+        #     branchings = child.getParentBranchings()
+        #     for sol_index in self.sol_indices[node_number]:
+        #         sol = self.solutions[sol_index]
+        #         for bvar, bbound, btype in zip(*branchings):
+        #             if btype == 0 and sol[bvar] < bbound: break  # EXCEEDS LOWER BOUND
+        #             if btype == 1 and sol[bvar] > bbound: break  # EXCEEDS UPPER BOUND
+        #         else:                                            # SATISFIES ALL BOUNDS
+        #             if child_number not in self.sol_indices:
+        #                 self.sol_indices[child_number] = []
+        #                 sol_ranks[child_index] = sol_index
+        #             self.sol_indices[child_number].append(sol_index)
+        #
+        # # My children have been processed;
+        # # My work here is done. Goodbye.
+        # del self.sol_indices[node_number]
+        #
+        # # Save 'both' if both children lead to a solution
+        # action = int(sol_ranks[1] < sol_ranks[0])
+        # both = sol_ranks[0] < self.k_sols and sol_ranks[1] < self.k_sols
+        # print(f"Node: {node_number} | Depth: {depth} | Action: {['left', 'right'][action]} | Both: {both}")
+        #
+        # state = extract.extract_MLP_state(self.model, *children)
+        # self.sampler.create_sample(*state, action)
+        #
+        # return super().nodeselect()
 
     def nodecomp(self, node1, node2):
-        if self.sampling != "Nodes":
+        if (self.sampling == "Children" and
+                node1.getParent() != node2.getParent()):
             return super().nodecomp(node1, node2)
-        print(f"Node1: {node1.getNumber()} | Node2: {node2.getNumber()}")
 
-        sol_ranks = [self.k_sols, self.k_sols]
+        node1_lb = node1.getLowerbound()
+        node2_lb = node2.getLowerbound()
+        print(f"node {node1.getNumber()}: {node1_lb} | node {node2.getNumber()}: {node2_lb}")
+        print(f"global_lb: {self.model.getLowerbound()} | global_ub: {self.model.getUpperbound()}")
+
+        sol_rank = [self.k_sols, self.k_sols]
         for node_index, node in enumerate([node1, node2]):
             node_number = node.getNumber()
             # If the parent node contained the optimal sol,
@@ -143,7 +152,7 @@ class NodeselOracle(NodeselEstimate):
             parent_number = node.getParent().getNumber()
             if parent_number not in self.sol_indices: continue
             branchings = node.getParentBranchings()
-            for sol_index in self.sol_indices[node_number]:
+            for sol_index in self.sol_indices[parent_number]:
                 sol = self.solutions[sol_index]
                 for bvar, bbound, btype in zip(*branchings):
                     if btype == 0 and sol[bvar] < bbound: break  # EXCEEDS LOWER BOUND
@@ -151,15 +160,15 @@ class NodeselOracle(NodeselEstimate):
                 else:                                            # SATISFIES ALL BOUNDS
                     if node_number not in self.sol_indices:
                         self.sol_indices[node_number] = []
-                        sol_ranks[node_index] = sol_index
-                    self.sol_indices[node_number] += sol_index
+                        sol_rank[node_index] = sol_index
+                    self.sol_indices[node_number].append(sol_index)
 
-        if sol_ranks[0] == sol_ranks[1]:
+        if sol_rank[0] == sol_rank[1]:
             return super().nodecomp(node1, node2)
-
-        action = int(sol_ranks[1] < sol_ranks[0])
-        both = sol_ranks[0] < self.k_sols and sol_ranks[1] < self.k_sols
-        print(f"Node1: {node1.getNumber()} | Node2: {node2.getNumber()} | Action: {['left', 'right'][action]} | Both: {both}")
+        action = int(sol_rank[1] < sol_rank[0])
+        print(f"| Node {node1.getNumber()}: {sol_rank[0]} "
+              f"| Node {node2.getNumber()}: {sol_rank[1]} "
+              f"| Action: {['left', 'right'][action]}")
 
         state = extract.extract_MLP_state(self.model, node1, node2)
         self.sampler.create_sample(*state, action)

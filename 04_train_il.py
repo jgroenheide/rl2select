@@ -10,6 +10,7 @@ import json
 import glob
 import time
 import argparse
+import utilities
 import model as ml
 import torch as th
 import wandb as wb
@@ -135,6 +136,10 @@ if __name__ == "__main__":
         valid_data = data.Dataset(valid_files)
         train_loader = DataLoader(train_data, batch_train, shuffle=True)
         valid_loader = DataLoader(valid_data, batch_valid, shuffle=False)
+
+        sample_data = data.Dataset(train_files + valid_files)
+        sample_loader = DataLoader(sample_data, batch_size=512)
+        utilities.extract_MLP_statistics(sample_loader, len(sample_data))
     elif config['model'] == "GNN":
         model = ml.GNNPolicy().to(device)
 
@@ -162,7 +167,7 @@ if __name__ == "__main__":
     running_dir = experiment_dir + f'/{args.seed}_{timestamp}'
     os.makedirs(running_dir, exist_ok=True)
     logfile = running_dir + '/il_train_log.txt'
-    wb.init(project="rl2select", config=config)
+    # wb.init(project="rl2select", config=config)
 
     log(f"training files: {len(train_files)}", logfile)
     log(f"validation files: {len(valid_files)}", logfile)
@@ -170,6 +175,7 @@ if __name__ == "__main__":
     log(f"batch_size (valid): {batch_valid}", logfile)
     log(f"max epochs: {config['num_epochs']}", logfile)
     log(f"learning rate: {config['lr_train_il']}", logfile)
+    log(f"model size: {sum(p.numel() for p in model.parameters())}", logfile)
     log(f"problem: {args.problem}", logfile)
     log(f"seed {args.seed}", logfile)
     log(f"gpu: {args.gpu}", logfile)

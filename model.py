@@ -7,9 +7,9 @@ class MLPPolicy(th.nn.Module):
 
     def __init__(self):
         super().__init__()
-        self.model = th.nn.Sequential(th.nn.Linear(16, 64),
+        self.model = th.nn.Sequential(th.nn.Linear(16, 32),
                                       th.nn.LeakyReLU(),
-                                      th.nn.Linear(64, 1))
+                                      th.nn.Linear(32, 1))
 
     def forward(self, node1, node2):
         score1 = self.model(node1)

@@ -66,7 +66,7 @@ if __name__ == '__main__':
         print(f"Number of CUDA devices: {th.cuda.device_count()}")
         print(f"Active CUDA Device: {th.cuda.current_device()}")
 
-    rng = np.random.RandomState(args.seed)
+    rng = np.random.default_rng(args.seed)
     th.manual_seed(args.seed)
 
     # data
@@ -98,10 +98,10 @@ if __name__ == '__main__':
 
 
     def train_batch_generator():
-        episodes_per_epoch = config['num_episodes_per_epoch']
+        sign = 1 if args.problem in ["cflp"] else -1
         while True:
-            train_batches = [{'path': instance, 'seed': rng.randint(0, 2**31), 'sol': opt_sols[instance]}
-                             for instance in rng.choice(train_files, size=episodes_per_epoch, replace=True)]
+            train_batches = [{'path': instance, 'seed': rng.integers(0, 2**31), 'sol': sign * opt_sols[instance]}
+                             for instance in rng.choice(train_files, size=config['episodes_per_epoch'], replace=True)]
             yield train_batches
 
 
@@ -188,7 +188,7 @@ if __name__ == '__main__':
             t_lpiterss = [s['info']['lpiters'] for s in t_stats]
             t_times = [s['info']['time'] for s in t_stats]
 
-            epoch_data.update({
+            wb.log({
                 'train_nnodes_g': gmean(t_nnodess),
                 'train_nnodes': np.mean(t_nnodess),
                 'train_time': np.mean(t_times),
@@ -197,32 +197,31 @@ if __name__ == '__main__':
                 'train_loss': t_losses['loss'],
                 'train_reinforce_loss': t_losses['reinforce_loss'],
                 'train_entropy': t_losses['entropy'],
-            })
+            }, step=epoch)
         # VALIDATION #
         if (epoch % config['valid_freq'] == 0) or (epoch == config['num_epochs']):
             v_queue.join()  # wait for all validation episodes to be processed
             log("  validation jobs finished", logfile)
 
-            v_nnodess = [s['info']['nnodes'] for s in v_stats]  # might need to ensure non-zero
+            v_nnodess = [s['info']['nnodes'] for s in v_stats]
             v_lpiterss = [s['info']['lpiters'] for s in v_stats]
             v_times = [s['info']['time'] for s in v_stats]
-            assert np.all(np.array(v_nnodess) > 0)
 
-            epoch_data.update({
-                'valid_nnodes_g': gmean(v_nnodess),
+            assert np.all(np.array(v_nnodess) > 0)
+            tree_size = gmean(v_nnodess)
+            wb.log({
+                'valid_nnodes_g': tree_size,
                 'valid_nnodes': np.mean(v_nnodess),
                 'valid_nnodes_max': np.amax(v_nnodess),
                 'valid_nnodes_min': np.amin(v_nnodess),
                 'valid_time': np.mean(v_times),
                 'valid_lpiters': np.mean(v_lpiterss),
-            })
+            }, step=epoch)
 
-            if epoch_data['valid_nnodes_g'] < best_tree_size:
-                best_tree_size = epoch_data['valid_nnodes_g']
+            if tree_size < best_tree_size:
+                best_tree_size = tree_size
                 log("Best parameters so far (1-shifted geometric mean), saving model.", logfile)
                 brain.save(paramfile)
-
-        wb.log(epoch_data, step=epoch)
 
         # If time limit is hit, stop process
         elapsed_time = time.time() - start_time

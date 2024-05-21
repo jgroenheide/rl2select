@@ -1,5 +1,6 @@
 import datetime
 import subprocess
+import numpy as np
 import wandb as wb
 import pyscipopt as scip
 
@@ -81,3 +82,19 @@ def init_scip_params(model, seed, static=False, presolving=True, heuristics=True
 
     # if first_solution_only:
     #     m.setIntParam('limits/solutions', 1)
+
+
+def extract_MLP_statistics(data_loader, num_samples):
+    stats_min = np.zeros((16,))
+    stats_max = np.zeros((16,))
+    stats_avg = np.zeros((16,))
+    for state, _ in data_loader:
+        state = np.concatenate(state, axis=0)  # (1024, 16)
+        stats_min = np.minimum(stats_min, state.min(axis=0))
+        stats_max = np.maximum(stats_max, state.max(axis=0))
+        stats_avg = np.add(stats_avg, state.sum(axis=0))
+    stats_avg /= 2 * num_samples
+    np.set_printoptions(suppress=True)
+    print(stats_min)
+    print(stats_max)
+    print(stats_avg)

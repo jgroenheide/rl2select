@@ -15,7 +15,6 @@ import queue
 import argparse
 import utilities
 import model as ml
-import numpy as np
 import torch as th
 import pyscipopt as scip
 import multiprocessing as mp
@@ -80,22 +79,15 @@ def evaluate(in_queue, out_queue, nodesel, static):
         # before finding the optimal solution
         # -- m.getNBestSolsFound()
 
-        stime = m.getSolvingTime()
-        nnodes = m.getNNodes()
-        nsols = m.getNBestSolsFound()
-        nlps = m.getNLPs()
-        gap = m.getGap()
-        status = m.getStatus()
-
         out_queue.put({
-            'instance': instance,
+            'instance': os.path.basename(instance),
             'seed': seed,
-            'nnodes': nnodes,
-            'nsols': nsols,
-            'nlps': nlps,
-            'gap': gap,
-            'status': status,
-            'stime': stime,
+            'nnodes': m.getNNodes(),
+            'nsols': m.getNBestSolsFound(),
+            'nlps': m.getNLPs(),
+            'gap': m.getGap(),
+            'status': m.getStatus(),
+            'solvetime': m.getSolvingTime(),
             'walltime': walltime,
             'proctime': proctime,
         })
@@ -112,8 +104,6 @@ def collect_evaluation(instances, seed, n_jobs, nodesel, static, result_file):
     ----------
     instances : list
         Instances to process
-    random: np.random.Generator
-        Random number generator
     n_jobs : int
         Number of jobs for parallel sampling.
     nodesel : object
@@ -122,8 +112,9 @@ def collect_evaluation(instances, seed, n_jobs, nodesel, static, result_file):
     in_queue = mp.Queue()
     out_queue = mp.Queue()
     for instance in instances:
-        in_queue.put([instance, seed])
-    print(f"{len(instances)} instances on queue.")
+        for seed in range(5):
+            in_queue.put([instance, seed])
+    print(f"{5 * len(instances)} instances on queue.")
 
     workers = []
     for i in range(n_jobs):
@@ -138,7 +129,7 @@ def collect_evaluation(instances, seed, n_jobs, nodesel, static, result_file):
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
         writer.writeheader()
 
-        for _ in trange(len(instances)):
+        for _ in trange(5 * len(instances)):
             try:
                 answer = out_queue.get(timeout=150)
             # if no response is given in time_limit seconds,
@@ -230,19 +221,19 @@ if __name__ == "__main__":
         'nlps',
         'gap',
         'status',
-        'stime',
+        'solvetime',
         'walltime',
         'proctime',
     ]
 
     transfer_difficulty = {
-        "indset": "1000_4",
-        "gisp": "80_0.5",
-        "mkp": "100_12",
-        "cflp": "60_35_5",
-        "fcmcnf": "30_45_100",
-        "setcover": "500_1000_0.05",
-        "cauctions": "200_1000"
+        'indset': "1000_4",
+        'gisp': "80_0.5",
+        'mkp': "100_12",
+        'cflp': "60_35_5",
+        'fcmcnf': "30_45_100",
+        'setcover': "500_1000_0.05",
+        'cauctions': "200_1000"
     }[args.problem]
     difficulty = transfer_difficulty if args.instance_type == "transfer" else config['difficulty'][args.problem]
     instance_dir = f'data/{args.problem}/instances/{args.instance_type}_{difficulty}'
@@ -253,7 +244,7 @@ if __name__ == "__main__":
     running_dir = experiment_dir + f'/{args.seed}_{timestamp}'
     os.makedirs(running_dir, exist_ok=True)
     for nodesel in nodesels:
-        for static in [False]:  # True,
+        for static in [True, False]:
             static_ = "static_" if static else ""
             result_file = os.path.join(running_dir, f'{nodesel}_{static_}results.csv')
             collect_evaluation(instances, args.seed, args.njobs, nodesel, static, result_file)

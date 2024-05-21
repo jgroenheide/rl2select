@@ -121,9 +121,9 @@ def extract_GNN_state(model, buffer=None):
 
 
 def extract_MLP_state(model, node1, node2):
-    max_depth = model.getDepth() + 1
+    current_depth = model.getDepth() + 1
     branch_state = observation.branching_features(model, node1)
-    branch_state['n_inferences'] /= max_depth
+    branch_state['n_inferences'] /= current_depth
 
     branching_features1 = list(branch_state.values())
     # branching_features = {
@@ -135,13 +135,13 @@ def extract_MLP_state(model, node1, node2):
         branching_features2 = branching_features1
     else:
         branch_state = observation.branching_features(model, node2)
-        branch_state['n_inferences'] /= max_depth
+        branch_state['n_inferences'] /= current_depth
         branching_features2 = list(branch_state.values())
 
     node_state1 = observation.node_features(model, node1)
     node_state2 = observation.node_features(model, node2)
-    node_state1['relative_depth'] /= max_depth * 0.1  # / 0.1 <=> * 10
-    node_state2['relative_depth'] /= max_depth * 0.1
+    # node_state1['relative_depth'] /= current_depth * 0.1  # / 0.1 <=> * 10
+    # node_state2['relative_depth'] /= current_depth * 0.1
 
     root_lb = abs(model.getRootNode().getLowerbound())
     if model.isZero(root_lb): root_lb = 0.0001
@@ -156,9 +156,6 @@ def extract_MLP_state(model, node1, node2):
     node_state2['relative_bound'] = (node_state2['node_lb'] - global_state['global_lb']) / bound_norm
     global_state['global_lb'] /= root_lb
     global_state['global_ub'] /= root_lb
-
-    max_plunge_depth = max(int(model.getMaxDepth() / 2), 1)
-    global_state['plunge_depth'] /= max_plunge_depth
 
     node_features1 = list(node_state1.values())
     # node_features1 = {
@@ -182,4 +179,3 @@ def extract_MLP_state(model, node1, node2):
     state2 = np.concatenate((branching_features2, node_features2, global_features), dtype=np.float32)
     # return branching_features1, branching_features2, node_features1, node_features2, global_features
     return state1, state2
-

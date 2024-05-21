@@ -85,15 +85,8 @@ class NodeselAgent(scip.Nodesel):
         # self.penalty = self.model.getUpperbound()  # For primal bound improvement
 
         # For optimality-bound penalty
-        focus_node = self.model.getCurrentNode()
-        bound = focus_node.getLowerbound()
-        sense = self.model.getObjectiveSense()
-        if sense == "minimize":
-            self.penalty += (bound > self.opt_sol)
-        elif sense == "maximize":
-            self.penalty += (bound < self.opt_sol)
-        else:
-            raise ValueError
+        lower_bound = self.model.getCurrentNode().getLowerbound()
+        self.penalty += self.model.isGT(lower_bound, self.opt_sol)
 
         # collect transition samples if requested
         if self.sample_rate > 0:

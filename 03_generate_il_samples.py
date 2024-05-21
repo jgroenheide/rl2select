@@ -249,11 +249,11 @@ if __name__ == '__main__':
         help='MILP instance type to process.',
         choices=config['problems'],
     )
-    parser.add_argument(
-        'instance_type',
-        help='Type of instances to sample',
-        choices=['train', 'valid'],
-    )
+    # parser.add_argument(
+    #     'instance_type',
+    #     help='Type of instances to sample',
+    #     choices=['train', 'valid'],
+    # )
     parser.add_argument(
         'sampling_type',
         help='Type of sampling to apply',
@@ -289,10 +289,11 @@ if __name__ == '__main__':
     difficulty = config['difficulty'][args.problem]
     sample_dir = f'data/{args.problem}/samples/k={args.ksols}_{args.sampling_type}'
 
-    instance_dir = f'data/{args.problem}/instances/{args.instance_type}_{difficulty}'
-    instances = glob.glob(instance_dir + f'/*.lp')
-    num_samples = args.ratio * len(instances)
-    out_dir = sample_dir + f'/{args.instance_type}_{difficulty}'
-    os.makedirs(out_dir, exist_ok=True)  # create output directory, throws an error if it already exists
-    print(f"{len(instances)} {args.instance_type} instances for {num_samples} {args.sampling_type} samples")
-    collect_samples(instances, out_dir, args.njobs, args.ksols, num_samples, args.sampling_type, rng)
+    for instance_type in ["train", "valid"]:
+        instance_dir = f'data/{args.problem}/instances/{instance_type}_{difficulty}'
+        instances = glob.glob(instance_dir + f'/*.lp')
+        num_samples = args.ratio * len(instances)
+        out_dir = sample_dir + f'/{instance_type}_{difficulty}'
+        os.makedirs(out_dir, exist_ok=True)  # create output directory, throws an error if it already exists
+        print(f"{len(instances)} {instance_type} instances for {num_samples} {args.sampling_type} samples")
+        collect_samples(instances, out_dir, args.njobs, args.ksols, num_samples, args.sampling_type, rng)

@@ -213,7 +213,7 @@ def generate_general_indset(graph, filename, alphaE2, random):
         lp_file.write("".join([f" y{node1}_{node2}" for node1, node2 in E2]))
 
 # -------------------- KNAPSACK GENERATORS ----------------------
-def generate_weights_and_values(n_items, random, min_range=10, max_range=20, scheme='weakly correlated'):
+def generate_weights_and_values(n_items, random, min_range=10, max_range=20, scheme="weakly correlated"):
     """
     Parameters
     ----------
@@ -230,14 +230,14 @@ def generate_weights_and_values(n_items, random, min_range=10, max_range=20, sch
     """
     weights = random.integers(min_range, max_range, n_items)
 
-    if scheme == 'subset-sum':
+    if scheme == "subset-sum":
         values = weights
-    elif scheme == 'uncorrelated':
+    elif scheme == "uncorrelated":
         values = random.integers(min_range, max_range, n_items)
-    elif scheme == 'weakly correlated':
-        values = np.apply_along_axis(lambda x: random.integers(x[0], x[1]), axis=0, arr=np.vstack([
-            np.maximum(weights - (max_range - min_range), 1), weights + (max_range - min_range)]))
-    elif scheme == 'strongly correlated':
+    elif scheme == "weakly correlated":
+        arr = np.vstack([np.maximum(weights - (max_range - min_range), 1), weights + (max_range - min_range)])
+        values = np.apply_along_axis(lambda x: random.integers(x[0], x[1]), axis=0, arr=arr)
+    elif scheme == "strongly correlated":
         values = weights + (max_range - min_range) / 10
     else:
         raise NotImplementedError

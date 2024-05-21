@@ -135,6 +135,27 @@ def collector(problem, config, n_jobs, k_sols, random):
         p.terminate()
 ```
 
+```python
+import numpy as np
+import torch as th
+sample_dir = f'data/{args.problem}/samples/{args.dir}/valid_{difficulty}'
+sample_files = [str(file) for file in glob.glob(sample_dir + '/*.pkl')]
+
+valid_data = data.Dataset(sample_files)
+valid_loader = DataLoader(valid_data, 256)
+stats_min = np.zeros((16,))
+stats_max = np.zeros((16,))
+for state, _ in valid_loader:
+    # state.shape = [256, 16]
+    state = np.concatenate(state, dim=1)
+    state_min = state.min(dim=1)[0]
+    stats_min = np.minimum(stats_min, state_min)
+    stats_min.minimum(state_min)
+
+    state_max = state.max(dim=1)[0]
+    stats_max = np.maximum(stats_max, state_max)
+```
+
 Experiments:
 IL:
 - K sols: [1, 10]
