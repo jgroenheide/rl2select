@@ -74,6 +74,9 @@ class NodeselOracle(NodeselEstimate):
         indices = list(range(self.k_sols))
         self.sol_indices = {1: indices}
 
+        self.depth = 0
+        self.plunge_depth = 0
+
     def nodeselect(self):
         # Stop sampling after 5000 nodes
         if self.model.getNNodes() > 5000:
@@ -172,5 +175,8 @@ class NodeselOracle(NodeselEstimate):
 
         state = extract.extract_MLP_state(self.model, node1, node2)
         self.sampler.create_sample(*state, action)
+
+        self.depth += self.model.getDepth() + 1
+        self.plunge_depth += self.model.getPlungeDepth()
 
         return super().nodecomp(node1, node2)

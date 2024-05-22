@@ -186,16 +186,17 @@ def branching_features(model, node, buffer=None):
 
 
 def node_features(model, node, buffer=None):
-    relative_depth = node.getDepth() / (model.getMaxDepth() + 1)
+    node_depth = node.getDepth() / (model.getMaxDepth() + 1)
+    assert sum(node.getNDomchg()) <= 1
     return {
         # 'type_child': node.getType() == 3,  # always true for smartDFS
         # 'type_sibling': node.getType() == 2,
         # 'type_leaf': node.getType() == 4,
         'relative_bound': None,
-        'relative_depth': relative_depth,
+        'node_depth': node_depth,
         'node_lb': node.getLowerbound(),
         'estimate': node.getEstimate(),
-        'influence': sum(node.getNDomchg()),
+        # 'influence': sum(node.getNDomchg()),
         'is_prio_child': node == model.getPrioChild(),
     }
 
@@ -204,9 +205,11 @@ def global_features(model, buffer=None):
     global_lb = model.getLowerbound()
     global_ub = model.getUpperbound()
     ub_is_infinite = model.isInfinity(global_ub) or model.isInfinity(-global_ub)
-    if ub_is_infinite: global_ub = global_lb + 0.2 * (global_ub - global_lb)
-    integrality_gap = model.getGap()
-    gap_is_infinite = model.isInfinity(integrality_gap)
+    # if ub_is_infinite: global_ub = global_lb + 0.2 * (global_ub - global_lb)
+    gap_is_infinite = model.isZero(global_lb) or ub_is_infinite
+    bound_gap = 0 if gap_is_infinite else (global_ub - global_lb) / abs(global_lb)
+    # if these activate, we need to evaluate them
+    assert not ub_is_infinite and not gap_is_infinite
 
     max_plunge_depth = max(int(model.getMaxDepth() / 2), 1)
     plunge_depth = model.getPlungeDepth() / max_plunge_depth
@@ -214,8 +217,8 @@ def global_features(model, buffer=None):
     return {
         'global_lb': global_lb,
         'global_ub': global_ub,
-        'ub_is_infinite': ub_is_infinite,  # always False
-        'integrality_gap': integrality_gap,
-        'gap_is_infinite': gap_is_infinite,  # always False
+        'bound_gap': bound_gap,
+        # 'ub_is_infinite': ub_is_infinite,  # always False
+        # 'gap_is_infinite': gap_is_infinite,
         'plunge_depth': plunge_depth,
     }

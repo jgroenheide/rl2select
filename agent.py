@@ -34,7 +34,7 @@ class AgentPool:
         self.requests_queue.put(None)
         self.requests_queue.join()
 
-    def start_job(self, instances, sample_rate, greedy=False, static=False, block_policy=False):
+    def start_job(self, instances, sample_rate, greedy, static, block_policy=True):
         """
         Starts a job. A job is a set of tasks.
         A task consists of an instance and instructions (sample rate, greediness).

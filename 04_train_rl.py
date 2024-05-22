@@ -117,7 +117,7 @@ if __name__ == '__main__':
     os.makedirs(running_dir, exist_ok=True)
     logfile = running_dir + '/rl_train_log.txt'
     paramfile = running_dir + f'/best_params_rl-{args.mode}.pkl'
-    wb.init(project="rl2select", config=config)
+    # wb.init(project="rl2select", config=config)
 
     log(f"training instances: {len(train_files)}", logfile)
     log(f"validation instances: {len(valid_files)}", logfile)
@@ -134,10 +134,13 @@ if __name__ == '__main__':
     # Already start jobs  [CREATE]
     train_batch = next(batch_generator)
     sample_rate = config['sample_rate']
-    t_next = agent_pool.start_job(train_batch, sample_rate, greedy=False, static=True, block_policy=True)
-    v_next = agent_pool.start_job(valid_batch, 0.0, greedy=True, static=True, block_policy=True)
+    t_next = agent_pool.start_job(train_batch, sample_rate, greedy=False, static=True)
+    v_next = agent_pool.start_job(valid_batch, 0.0, greedy=True, static=True)
+    t_samples, t_stats, t_queue, t_access = t_next
+    _, v_stats, v_queue, v_access = v_next
 
     # training loop
+    elapsed_time = 0
     start_time = time.time()
     best_tree_size = np.inf
     for epoch in range(config['num_epochs'] + 1):
@@ -169,11 +172,11 @@ if __name__ == '__main__':
         # TRAINING #
         if epoch + 1 < config['num_epochs']:
             train_batch = next(batch_generator)
-            t_next = agent_pool.start_job(train_batch, sample_rate, greedy=False, static=True, block_policy=True)
+            t_next = agent_pool.start_job(train_batch, sample_rate, greedy=False, static=True)
         # VALIDATION #
         if epoch + 1 <= config['num_epochs']:
             if ((epoch + 1) % config['valid_freq'] == 0) or ((epoch + 1) == config['num_epochs']):
-                v_next = agent_pool.start_job(valid_batch, 0.0, greedy=True, static=True, block_policy=True)
+                v_next = agent_pool.start_job(valid_batch, 0.0, greedy=True, static=True)
 
         # Validate the finished jobs [EVALUATE]
         # TRAINING #

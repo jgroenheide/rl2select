@@ -85,6 +85,8 @@ def make_samples(in_queue, out_queue, tmp_dir, k_sols, sampling):
             'episode': episode,
             'action_count': sampler.action_count,
             'sample_count': sampler.sample_count,
+            'total_depth': oracle.depth,
+            'total_plunge_depth': oracle.plunge_depth,
         })
 
 
@@ -167,6 +169,9 @@ def collect_samples(instances, sample_dir, n_jobs, k_sols, max_samples, sampling
 
     sample_count = 0
     action_count = [0, 0]
+
+    total_depth = 0
+    total_plunge_depth = 0
     while n_samples < max_samples:
         try:
             sample = out_queue.get(timeout=150)
@@ -214,6 +219,9 @@ def collect_samples(instances, sample_dir, n_jobs, k_sols, max_samples, sampling
                     sample_count += sample['sample_count']
                     print(f"[m {os.getpid()}] episode {sample['episode']}: "
                           f"{sample_count} / {max_samples} samples written.")
+
+                    total_depth += sample['total_depth']
+                    total_plunge_depth += sample['total_plunge_depth']
                     episode_i += 1
                     break
 
@@ -232,10 +240,15 @@ def collect_samples(instances, sample_dir, n_jobs, k_sols, max_samples, sampling
     for p in workers:
         p.terminate()
 
-    class_dist = [f'{x / sample_count:.2f}' for x in action_count]
+    if sample_count == 0:
+        print("Sampling completed: No sampling info available")
+    class_dist = [f"{x / sample_count:.2f}" for x in action_count]
     print(f"Sampling completed: (Left, Right): {class_dist}")
     # with open(sample_dir + '/class_dist.json', "w") as f:
     #     json.dump([x / sample_count for x in action_count], f)
+
+    print(f"total_depth: {total_depth}")
+    print(f"total_plunge_depth: {total_plunge_depth}")
 
 
 if __name__ == '__main__':

@@ -140,20 +140,18 @@ def extract_MLP_state(model, node1, node2):
 
     node_state1 = observation.node_features(model, node1)
     node_state2 = observation.node_features(model, node2)
-    # node_state1['relative_depth'] /= current_depth * 0.1  # / 0.1 <=> * 10
-    # node_state2['relative_depth'] /= current_depth * 0.1
 
-    root_lb = abs(model.getRootNode().getLowerbound())
-    if model.isZero(root_lb): root_lb = 0.0001
+    global_state = observation.global_features(model)
+    bound_norm = max(global_state['global_ub'] - global_state['global_lb'], 1)
+    node_state1['relative_bound'] = (node_state1['node_lb'] - global_state['global_lb']) / bound_norm
+    node_state2['relative_bound'] = (node_state2['node_lb'] - global_state['global_lb']) / bound_norm
+
+    root_lb = model.getRootNode().getLowerbound()
+    if model.isZero(root_lb): root_lb = 1
     node_state1['node_lb'] /= root_lb
     node_state1['estimate'] /= root_lb
     node_state2['node_lb'] /= root_lb
     node_state2['estimate'] /= root_lb
-
-    global_state = observation.global_features(model)
-    bound_norm = global_state['global_ub'] - global_state['global_lb']
-    node_state1['relative_bound'] = (node_state1['node_lb'] - global_state['global_lb']) / bound_norm
-    node_state2['relative_bound'] = (node_state2['node_lb'] - global_state['global_lb']) / bound_norm
     global_state['global_lb'] /= root_lb
     global_state['global_ub'] /= root_lb
 
