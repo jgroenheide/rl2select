@@ -86,10 +86,11 @@ class NodeselOracle(NodeselEstimate):
             self.model.getBestChild()
         elif self.sampling == "Nodes":
             self.model.getBestNode()
-        selnode = super().nodeselect()
-        print(f"Chose: {selnode['selnode'].getNumber()}")
-        print("*** ====================== ***")
-        return selnode
+        return super().nodeselect()
+        # selnode = super().nodeselect()
+        # print(f"Chose: {selnode['selnode'].getNumber()}")
+        # print("*** ====================== ***")
+        # return selnode
 
         # depth = self.model.getDepth()
         # if depth < 0:
@@ -142,10 +143,10 @@ class NodeselOracle(NodeselEstimate):
                 node1.getParent() != node2.getParent()):
             return super().nodecomp(node1, node2)
 
-        node1_lb = node1.getLowerbound()
-        node2_lb = node2.getLowerbound()
-        print(f"node {node1.getNumber()}: {node1_lb} | node {node2.getNumber()}: {node2_lb}")
-        print(f"global_lb: {self.model.getLowerbound()} | global_ub: {self.model.getUpperbound()}")
+        # node1_lb = node1.getLowerbound()
+        # node2_lb = node2.getLowerbound()
+        # print(f"node {node1.getNumber()}: {node1_lb} | node {node2.getNumber()}: {node2_lb}")
+        # print(f"global_lb: {self.model.getLowerbound()} | global_ub: {self.model.getUpperbound()}")
 
         sol_rank = [self.k_sols, self.k_sols]
         for node_index, node in enumerate([node1, node2]):
