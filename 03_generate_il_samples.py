@@ -178,7 +178,7 @@ def collect_samples(instances, sample_dir, n_jobs, k_sols, max_samples, sampling
     max_p_depth = 0
     while n_samples < max_samples:
         try:
-            sample = out_queue.get(timeout=150)
+            sample = out_queue.get(timeout=160)
         # if no response is given in time_limit seconds,
         # the solver has crashed and the worker is dead:
         # start a new worker to pick up the pieces.
@@ -255,10 +255,11 @@ def collect_samples(instances, sample_dir, n_jobs, k_sols, max_samples, sampling
     # with open(sample_dir + '/class_dist.json', "w") as f:
     #     json.dump([x / sample_count for x in action_count], f)
 
-    print(f"avg_depth: {total_depth / sample_count:.3f}")
+    print(f"avg_depth: {total_depth}")
     print(f"max_depth: {max_depth}")
-    print(f"avg_plunge_depth: {total_plunge_depth / sample_count:.3f}")
+    print(f"avg_plunge_depth: {total_plunge_depth}")
     print(f"max_p_depth: {max_p_depth}")
+    print(f"num_samples: {sample_count}")
 
 
 if __name__ == '__main__':
@@ -304,7 +305,7 @@ if __name__ == '__main__':
         '-r', '--ratio',
         help='Samples per instance ratio',
         type=int,
-        default=10,
+        default=50,
     )
     args = parser.parse_args()
 

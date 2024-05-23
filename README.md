@@ -23,14 +23,6 @@ Compare reinforcement learning approach with imitation learning approach from Yi
 
 Use exponential weighting yes or no?
 
-The models predict the value of a leaf node.
-In He et al. they calculate this for every open node.
-In Yilmaz et al. they calculate this for the child nodes.
-=> When we only consider children, the branching and tree features will largely overlap.
-   the state can therefore best be described from the parent's perspective.
-in Labassi et al. they calculate this for the two nodes of a nodecomp call.
-=> [state, action] pairs must include both nodes of the comparison
-
 Subtree size is not a good indication of decision quality, because good decisions can have large subtrees while bad decisions
 can have small subtrees. Instead: Global tree size, Primal bound improvement, Optimality-Bound difference.
 - Global tree size: (NNodes at transition - total NNodes after solving)

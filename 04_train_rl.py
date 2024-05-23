@@ -117,7 +117,7 @@ if __name__ == '__main__':
     os.makedirs(running_dir, exist_ok=True)
     logfile = running_dir + '/rl_train_log.txt'
     paramfile = running_dir + f'/best_params_rl-{args.mode}.pkl'
-    # wb.init(project="rl2select", config=config)
+    wb.init(project="rl2select", config=config)
 
     log(f"training instances: {len(train_files)}", logfile)
     log(f"validation instances: {len(valid_files)}", logfile)

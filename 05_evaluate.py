@@ -15,12 +15,14 @@ import queue
 import argparse
 import utilities
 import model as ml
+import numpy as np
 import torch as th
 import pyscipopt as scip
 import multiprocessing as mp
 
 from tqdm import trange
 from nodesels import nodesel_policy
+from scipy.stats.mstats import gmean
 
 
 class NodeselBFS(scip.Nodesel):
@@ -47,6 +49,10 @@ def evaluate(in_queue, out_queue, nodesel, static):
     """
     while not in_queue.empty():
         instance, seed = in_queue.get()
+        nnodes = []
+        stime = []
+        for seed in range(seed, seed+5):
+            b = None
         th.manual_seed(seed)
 
         # Initialize SCIP model
@@ -83,10 +89,10 @@ def evaluate(in_queue, out_queue, nodesel, static):
             'instance': os.path.basename(instance),
             'seed': seed,
             'nnodes': m.getNNodes(),
-            'nsols': m.getNBestSolsFound(),
             'nlps': m.getNLPs(),
             'gap': m.getGap(),
             'status': m.getStatus(),
+            'nsols': m.getNBestSolsFound(),
             'solvetime': m.getSolvingTime(),
             'walltime': walltime,
             'proctime': proctime,
@@ -196,8 +202,8 @@ if __name__ == "__main__":
         device = f"cuda:0"
 
     # Default: BestEstimate, BFS
-    nodesels = []
-    # nodesels = [None, NodeselBFS()]
+    # nodesels = []
+    nodesels = [None, NodeselBFS()]
 
     # Learned models
     for model_id in ["il", "rl_mdp"]:
@@ -217,41 +223,42 @@ if __name__ == "__main__":
         'instance',
         'seed',
         'nnodes',
-        'nsols',
         'nlps',
         'gap',
         'status',
+        'nsols',
         'solvetime',
         'walltime',
         'proctime',
     ]
 
-    transfer_difficulty = {
-        'indset': "1000_4",
-        'gisp': "80_0.5",
-        'mkp': "100_12",
-        'cflp': "60_35_5",
-        'fcmcnf': "30_45_100",
-        'setcover': "500_1000_0.05",
-        'cauctions': "200_1000"
-    }[args.problem]
-    difficulty = transfer_difficulty if args.instance_type == "transfer" else config['difficulty'][args.problem]
-    instance_dir = f'data/{args.problem}/instances/{args.instance_type}_{difficulty}'
-    instances = glob.glob(instance_dir + '/*.lp')
+    for instance_type in [None]:  # "test", "transfer"
+        transfer_difficulty = {
+            'indset': "1000_4",
+            'gisp': "80_0.5",
+            'mkp': "100_12",
+            'cflp': "60_35_5",
+            'fcmcnf': "30_45_100",
+            'setcover': "500_1000_0.05",
+            'cauctions': "200_1000"
+        }[args.problem]
+        difficulty = transfer_difficulty if args.instance_type == "transfer" else config['difficulty'][args.problem]
+        instance_dir = f'data/{args.problem}/instances/{args.instance_type}_{difficulty}'
+        instances = glob.glob(instance_dir + '/*.lp')
 
-    timestamp = time.strftime('%Y-%m-%d--%H.%M.%S')
-    experiment_dir = f'experiments/{args.problem}/05_evaluate'
-    running_dir = experiment_dir + f'/{args.seed}_{timestamp}'
-    os.makedirs(running_dir, exist_ok=True)
-    for nodesel in nodesels:
-        for static in [True, False]:
-            static_ = "static_" if static else ""
-            result_file = os.path.join(running_dir, f'{nodesel}_{static_}results.csv')
-            collect_evaluation(instances, args.seed, args.njobs, nodesel, static, result_file)
+        timestamp = time.strftime('%Y-%m-%d--%H.%M.%S')
+        experiment_dir = f'experiments/{args.problem}/05_evaluate'
+        running_dir = experiment_dir + f'/{args.seed}_{timestamp}'
+        os.makedirs(running_dir, exist_ok=True)
+        for nodesel in nodesels:
+            for static in [True, False]:
+                static_ = "static_" if static else ""
+                result_file = os.path.join(running_dir, f'{nodesel}_{static_}results.csv')
+                collect_evaluation(instances, args.seed, args.njobs, nodesel, static, result_file)
 
-    # with open(result_file, 'w', newline='') as csvfile:
-    #     reader = csv.DictReader(csvfile, fieldnames=fieldnames)
-    #     for x in reader:  # returns the same dicts sent out by evaluate()
-            # instance_results = results of all seeds for instance
-            # aggregate instance_results to the mean value
-            # take the geometric mean of
+        # with open(result_file, 'w', newline='') as csvfile:
+        #     reader = csv.DictReader(csvfile, fieldnames=fieldnames)
+        #     for x in reader:  # returns the same dicts sent out by evaluate()
+        #         instance_results = results of all seeds for instance
+        #         aggregate instance_results to the mean value
+        #         take the geometric mean of all the instances

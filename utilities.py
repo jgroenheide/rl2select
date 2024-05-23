@@ -47,7 +47,8 @@ def log(log_message, logfile=None):
             print(out, file=f)
 
 
-def init_scip_params(model, seed, static=False, presolving=True, heuristics=True, separating=True, conflict=True):
+def init_scip_params(model, seed, static=False,
+                     presolving=True, heuristics=True, separating=True, conflict=True, propagating=True):
     seed = seed % 2147483648  # SCIP seed range
 
     if static:
@@ -80,14 +81,19 @@ def init_scip_params(model, seed, static=False, presolving=True, heuristics=True
     if not conflict:
         model.setBoolParam('conflict/enable', False)
 
+    # if asked, disable constraint propagation
+    if not propagating:
+        model.setIntParam("propagating/maxroundsroot", 0)
+        model.setIntParam("propagating/maxrounds", 0)
+
     # if first_solution_only:
     #     m.setIntParam('limits/solutions', 1)
 
 
 def extract_MLP_statistics(data_loader, num_samples):
-    stats_min = np.zeros((13,))
-    stats_max = np.zeros((13,))
-    stats_avg = np.zeros((13,))
+    stats_min = np.zeros((15,))
+    stats_max = np.zeros((15,))
+    stats_avg = np.zeros((15,))
     for state, _ in data_loader:
         state = np.concatenate(state, axis=0)  # (1024, 16)
         stats_min = np.minimum(stats_min, state.min(axis=0))
