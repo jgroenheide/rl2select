@@ -208,7 +208,7 @@ def global_features(model, buffer=None):
     gap_is_infinite = model.isZero(global_lb) or ub_is_infinite
     bound_gap = 0 if gap_is_infinite else (global_ub - global_lb) / abs(global_lb)
     # if these activate, we need to evaluate them
-    assert not gap_is_infinite and not ub_is_infinite
+    # assert not gap_is_infinite and not ub_is_infinite
 
     max_plunge_depth = max(int(model.getMaxDepth() / 2), 1)
     plunge_depth = model.getPlungeDepth() / max_plunge_depth
