@@ -75,7 +75,9 @@ class NodeselOracle(NodeselEstimate):
         self.sol_indices = {1: indices}
 
         self.depth = 0
+        self.max_depth = 0
         self.plunge_depth = 0
+        self.max_p_depth = 0
 
     def nodeselect(self):
         # Stop sampling after 5000 nodes
@@ -167,6 +169,13 @@ class NodeselOracle(NodeselEstimate):
                         sol_rank[node_index] = sol_index
                     self.sol_indices[node_number].append(sol_index)
 
+        # if self.sampling == "Children":
+        #     # My children have been processed
+        #     # My work here is done; goodbye.
+        #     node = self.model.getCurrentNode()
+        #     node_number = node.getNumber()
+        #     del self.sol_indices[node_number]
+
         if sol_rank[0] == sol_rank[1]:
             return super().nodecomp(node1, node2)
         action = int(sol_rank[1] < sol_rank[0])
@@ -177,7 +186,10 @@ class NodeselOracle(NodeselEstimate):
         state = extract.extract_MLP_state(self.model, node1, node2)
         self.sampler.create_sample(*state, action)
 
-        self.depth += self.model.getDepth() + 1
+        current_depth = self.model.getDepth() + 1
+        self.depth += current_depth
+        self.max_depth = max(self.max_depth, current_depth)
         self.plunge_depth += self.model.getPlungeDepth()
+        self.max_p_depth = max(self.max_p_depth, self.model.getPlungeDepth())
 
         return super().nodecomp(node1, node2)

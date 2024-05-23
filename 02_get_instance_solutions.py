@@ -252,10 +252,18 @@ def collector(problem, config, n_jobs, k_sols, random):
     obj_values = {}
     for instance_type, num_instances in config['num_instances']:
         if instance_type == "transfer":
+            # Stop the dispatcher
             dispatcher.terminate()
+            # Empty the in_queue
+            while not in_queue.empty():
+                in_queue.get()
+                in_queue.task_done()
+            # Complete all running processes
             in_queue.join()
+            # Discard the results
             while not out_queue.empty():
                 out_queue.get()
+            # start a new dispatcher
             dispatcher = mp.Process(
                 target=generate_instances,
                 args=(in_queue, problem, random, True),
@@ -325,8 +333,8 @@ if __name__ == '__main__':
         type=int,
     )
     args = parser.parse_args()
-    config['num_instances'] = [("train", 5),
-                               ("valid", 2),
+    config['num_instances'] = [("train", 40),
+                               ("valid", 20),
                                ("test", 1),
                                ("transfer", 1)]
 

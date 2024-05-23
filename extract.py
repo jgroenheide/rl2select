@@ -126,10 +126,6 @@ def extract_MLP_state(model, node1, node2):
     branch_state['n_inferences'] /= current_depth
 
     branching_features1 = list(branch_state.values())
-    # branching_features = {
-    #     'names': list(branch_state.keys()),
-    #     'values': list(branch_state.values()),
-    # }
 
     if node1.getParent() == node2.getParent():
         branching_features2 = branching_features1
@@ -149,29 +145,17 @@ def extract_MLP_state(model, node1, node2):
     root_lb = model.getRootNode().getLowerbound()
     if model.isZero(root_lb): root_lb = 1
     node_state1['node_lb'] /= root_lb
-    node_state1['estimate'] /= root_lb
     node_state2['node_lb'] /= root_lb
+    node_state1['estimate'] /= root_lb
     node_state2['estimate'] /= root_lb
     global_state['global_lb'] /= root_lb
     global_state['global_ub'] /= root_lb
 
     node_features1 = list(node_state1.values())
-    # node_features1 = {
-    #     'names': list(node_state1.keys()),
-    #     'values': list(node_state1.values()),
-    # }
 
     node_features2 = list(node_state2.values())
-    # node_features2 = {
-    #     'names': list(node_state2.keys()),
-    #     'values': list(node_state2.values()),
-    # }
 
     global_features = list(global_state.values())
-    # global_features = {
-    #     'names': list(global_state.keys()),
-    #     'values': list(global_state.values()),
-    # }
 
     state1 = np.concatenate((branching_features1, node_features1, global_features), dtype=np.float32)
     state2 = np.concatenate((branching_features2, node_features2, global_features), dtype=np.float32)

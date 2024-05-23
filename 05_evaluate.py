@@ -248,3 +248,10 @@ if __name__ == "__main__":
             static_ = "static_" if static else ""
             result_file = os.path.join(running_dir, f'{nodesel}_{static_}results.csv')
             collect_evaluation(instances, args.seed, args.njobs, nodesel, static, result_file)
+
+    # with open(result_file, 'w', newline='') as csvfile:
+    #     reader = csv.DictReader(csvfile, fieldnames=fieldnames)
+    #     for x in reader:  # returns the same dicts sent out by evaluate()
+            # instance_results = results of all seeds for instance
+            # aggregate instance_results to the mean value
+            # take the geometric mean of
