@@ -22,7 +22,7 @@ import multiprocessing as mp
 
 from tqdm import trange
 from nodesels import nodesel_policy
-from scipy.stats.mstats import gmean
+from scipy.stats import gmean
 
 
 class NodeselBFS(scip.Nodesel):
@@ -48,57 +48,65 @@ def evaluate(in_queue, out_queue, nodesel, static):
         Output queue in which to put solutions.
     """
     while not in_queue.empty():
-        instance, seed = in_queue.get()
-        nnodes = []
-        stime = []
-        for seed in range(seed, seed+5):
-            b = None
-        th.manual_seed(seed)
+        num_nodes = []
+        solvetime = []
+        instance, base_seed = in_queue.get()
+        instance_name = os.path.basename(instance)
+        for seed in range(base_seed, base_seed + 5):
+            th.manual_seed(seed)
 
-        # Initialize SCIP model
-        m = scip.Model()
-        m.hideOutput()
-        m.readProblem(instance)
+            # Initialize SCIP model
+            m = scip.Model()
+            m.hideOutput()
+            m.readProblem(instance)
 
-        # 1: CPU user seconds, 2: wall clock time
-        m.setIntParam('timing/clocktype', 1)
-        m.setRealParam('limits/time', 150)
-        utilities.init_scip_params(m, seed, static)
+            # 1: CPU user seconds, 2: wall clock time
+            m.setIntParam('timing/clocktype', 1)
+            m.setRealParam('limits/time', 150)
+            utilities.init_scip_params(m, seed, static)
 
-        if nodesel is not None:
-            m.includeNodesel(nodesel=nodesel,
-                             name="evaluate_nodesel",
-                             desc="BFS node selector",
-                             stdpriority=300000,
-                             memsavepriority=300000)
+            if nodesel is not None:
+                m.includeNodesel(nodesel=nodesel,
+                                 name="evaluate_nodesel",
+                                 desc="BFS node selector",
+                                 stdpriority=300000,
+                                 memsavepriority=300000)
 
-        # Solve and retrieve solutions
-        walltime = time.perf_counter()
-        proctime = time.process_time()
+            # Solve and retrieve solutions
+            wall_time = time.perf_counter()
+            proc_time = time.process_time()
 
-        m.optimize()
+            m.optimize()
 
-        walltime = time.perf_counter() - walltime
-        proctime = time.process_time() - proctime
+            wall_time = time.perf_counter() - wall_time
+            proc_time = time.process_time() - proc_time
 
-        # number of primal bound improvements
-        # before finding the optimal solution
-        # -- m.getNBestSolsFound()
+            num_nodes.append(m.getNNodes())
+            solvetime.append(m.getSolvingTime())
+
+            out_queue.put({
+                'type': "row",
+                'seed': seed,
+                'instance': instance_name,
+                'nnodes': m.getNNodes(),
+                'nlps': m.getNLPs(),
+                'gap': m.getGap(),
+                'nsols': m.getNBestSolsFound(),
+                'solve_time': m.getSolvingTime(),
+                'wall_time': wall_time,
+                'proc_time': proc_time,
+            })
+
+            m.freeProb()
 
         out_queue.put({
-            'instance': os.path.basename(instance),
-            'seed': seed,
-            'nnodes': m.getNNodes(),
-            'nlps': m.getNLPs(),
-            'gap': m.getGap(),
-            'status': m.getStatus(),
-            'nsols': m.getNBestSolsFound(),
-            'solvetime': m.getSolvingTime(),
-            'walltime': walltime,
-            'proctime': proctime,
+            'type': "mean",
+            'instance': instance_name,
+            'nnodes': np.mean(num_nodes),
+            'solve_time': np.mean(solvetime),
         })
 
-        m.freeProb()
+        # do something with the average nodes and time
 
 
 def collect_evaluation(instances, seed, n_jobs, nodesel, static, result_file):
@@ -118,8 +126,7 @@ def collect_evaluation(instances, seed, n_jobs, nodesel, static, result_file):
     in_queue = mp.Queue()
     out_queue = mp.Queue()
     for instance in instances:
-        for seed in range(5):
-            in_queue.put([instance, seed])
+        in_queue.put([instance, seed])
     print(f"{5 * len(instances)} instances on queue.")
 
     workers = []
@@ -131,6 +138,8 @@ def collect_evaluation(instances, seed, n_jobs, nodesel, static, result_file):
         workers.append(p)
         p.start()
 
+    nnodes = []
+    stimes = []
     with open(result_file, 'w', newline='') as csvfile:
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
         writer.writeheader()
@@ -149,11 +158,22 @@ def collect_evaluation(instances, seed, n_jobs, nodesel, static, result_file):
                 workers.append(p)
                 p.start()
                 continue
-            writer.writerow(answer)
-            csvfile.flush()
+            if answer['type'] == "row":
+                del answer['type']
+                writer.writerow(answer)
+                csvfile.flush()
+            else:  # answer['type'] == "mean"
+                nnodes.append(answer['nnodes'])
+                stimes.append(answer['solve_time'])
 
     for p in workers:
         p.join()
+
+    return {'nnodes_g': gmean(nnodes),
+            'nnodes_std': np.std(nnodes),
+            'stimes_g': gmean(stimes),
+            'stimes_std': np.std(stimes),
+            }
 
 
 if __name__ == "__main__":
@@ -220,16 +240,15 @@ if __name__ == "__main__":
     print(f"gpu: {args.gpu}")
 
     fieldnames = [
-        'instance',
         'seed',
+        'instance',
         'nnodes',
         'nlps',
         'gap',
-        'status',
         'nsols',
-        'solvetime',
-        'walltime',
-        'proctime',
+        'solve_time',
+        'wall_time',
+        'proc_time',
     ]
 
     for instance_type in [None]:  # "test", "transfer"
@@ -252,13 +271,7 @@ if __name__ == "__main__":
         os.makedirs(running_dir, exist_ok=True)
         for nodesel in nodesels:
             for static in [True, False]:
-                static_ = "static_" if static else ""
-                result_file = os.path.join(running_dir, f'{nodesel}_{static_}results.csv')
-                collect_evaluation(instances, args.seed, args.njobs, nodesel, static, result_file)
-
-        # with open(result_file, 'w', newline='') as csvfile:
-        #     reader = csv.DictReader(csvfile, fieldnames=fieldnames)
-        #     for x in reader:  # returns the same dicts sent out by evaluate()
-        #         instance_results = results of all seeds for instance
-        #         aggregate instance_results to the mean value
-        #         take the geometric mean of all the instances
+                experiment_id = str(nodesel) + "_static" if static else ""
+                result_file = os.path.join(running_dir, f'{experiment_id}_results.csv')
+                stats = collect_evaluation(instances, args.seed, args.njobs, nodesel, static, result_file)
+                print(stats)

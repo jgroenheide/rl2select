@@ -87,7 +87,7 @@ class NodeselAgent(scip.Nodesel):
         # For optimality-bound penalty
         lower_bound = self.model.getCurrentNode().getLowerbound()
         self.penalty += self.model.isGT(lower_bound, self.opt_sol)
-        reward = -self.model.isGT(lower_bound, self.opt_sol)
+        # reward = -self.model.isGT(lower_bound, self.opt_sol)
 
         # collect transition samples if requested
         if self.sample_rate > 0:
@@ -99,8 +99,6 @@ class NodeselAgent(scip.Nodesel):
                                          'action': action,
                                          'penalty': self.penalty,
                                          'node_id': node_number,
-
-                                         'reward': reward,
                                          })
 
         self.info.update({

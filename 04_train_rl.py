@@ -80,15 +80,15 @@ if __name__ == '__main__':
     valid_files = [str(file).replace('\\', '/') for file in
                    glob.glob(instance_dir + f'/valid_{difficulty}/*.lp')]
 
-    if not os.path.exists(instance_dir + f'/obj_values.json'):
-        print("obj_values.json not found. Creating from instance_solutions")
-        obj_values = {}
-        with open(instance_dir + f'/train_{difficulty}/instance_solutions.json') as f:
-            obj_values.update(json.load(f))
-        with open(instance_dir + f'/valid_{difficulty}/instance_solutions.json') as f:
-            obj_values.update(json.load(f))
-        with open(instance_dir + f'/obj_values.json', 'w') as f:
-            json.dump(obj_values, f)
+    # if not os.path.exists(instance_dir + f'/obj_values.json'):
+    #     print("obj_values.json not found. Creating from instance_solutions")
+    #     obj_values = {}
+    #     with open(instance_dir + f'/train_{difficulty}/instance_solutions.json') as f:
+    #         obj_values.update(json.load(f))
+    #     with open(instance_dir + f'/valid_{difficulty}/instance_solutions.json') as f:
+    #         obj_values.update(json.load(f))
+    #     with open(instance_dir + f'/obj_values.json', 'w') as f:
+    #         json.dump(obj_values, f)
     with open(instance_dir + f'/obj_values.json') as f:
         opt_sols = json.load(f)
 
@@ -132,10 +132,11 @@ if __name__ == '__main__':
     agent_pool.start()
 
     # Already start jobs  [CREATE]
+    static = True
     train_batch = next(batch_generator)
     sample_rate = config['sample_rate']
-    t_next = agent_pool.start_job(train_batch, sample_rate, greedy=False, static=True)
-    v_next = agent_pool.start_job(valid_batch, 0.0, greedy=True, static=True)
+    t_next = agent_pool.start_job(train_batch, sample_rate, static, greedy=False)
+    v_next = agent_pool.start_job(valid_batch, 0.0, static, greedy=True)
     t_samples, t_stats, t_queue, t_access = t_next
     _, v_stats, v_queue, v_access = v_next
 
@@ -172,11 +173,11 @@ if __name__ == '__main__':
         # TRAINING #
         if epoch + 1 < config['num_epochs']:
             train_batch = next(batch_generator)
-            t_next = agent_pool.start_job(train_batch, sample_rate, greedy=False, static=True)
+            t_next = agent_pool.start_job(train_batch, sample_rate, static, greedy=False)
         # VALIDATION #
         if epoch + 1 <= config['num_epochs']:
             if ((epoch + 1) % config['valid_freq'] == 0) or ((epoch + 1) == config['num_epochs']):
-                v_next = agent_pool.start_job(valid_batch, 0.0, greedy=True, static=True)
+                v_next = agent_pool.start_job(valid_batch, 0.0, static, greedy=True)
 
         # Validate the finished jobs [EVALUATE]
         # TRAINING #

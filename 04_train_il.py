@@ -167,7 +167,7 @@ if __name__ == "__main__":
     running_dir = experiment_dir + f'/{args.seed}_{timestamp}'
     os.makedirs(running_dir, exist_ok=True)
     logfile = running_dir + '/il_train_log.txt'
-    # wb.init(project="rl2select", config=config)
+    wb.init(project="rl2select", config=config)
 
     log(f"training files: {len(train_files)}", logfile)
     log(f"validation files: {len(valid_files)}", logfile)

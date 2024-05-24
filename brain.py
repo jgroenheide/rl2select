@@ -38,8 +38,7 @@ class Brain:
         stats = {'loss': 0.0, 'reinforce_loss': 0.0, 'entropy': 0.0}
 
         n_samples = len(transitions)
-        if n_samples < 1:
-            return stats
+        if n_samples < 1: return stats
 
         # transitions = torch_geometric.loader.DataLoader(transitions, batch_size=16, shuffle=True)
         transition_loader = torch.utils.data.DataLoader(transitions, batch_size=16, shuffle=True)
