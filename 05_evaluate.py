@@ -229,8 +229,8 @@ if __name__ == "__main__":
         device = f"cuda:0"
 
     # Default: BestEstimate, BFS, Random
-    nodesels = []
-    # nodesels = [None, NodeselBFS(), NodeselRandom(device, "random")]
+    # nodesels = []
+    nodesels = [None, NodeselBFS(), NodeselRandom(device, "random")]
 
     # Learned models
     for model_id in ["il"]:  # "il", "rl_mdp"
@@ -280,7 +280,7 @@ if __name__ == "__main__":
 
         for nodesel in nodesels:
             for static in [True, False]:
-                experiment_id = str(nodesel) + ("_static" if static else "")
+                experiment_id = f'{instance_type}_{nodesel}{"_static" if static else ""}'
                 result_file = os.path.join(running_dir, f'{experiment_id}_results.csv')
                 stats = collect_evaluation(instances, args.seed, args.njobs, nodesel, static, result_file)
                 results[experiment_id] = stats
