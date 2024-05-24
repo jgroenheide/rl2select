@@ -3,20 +3,10 @@ import torch as th
 import pyscipopt as scip
 
 
-class NodeselPolicy(scip.Nodesel):
-    def __init__(self, policy, device, name):
+class NodeselSomething(scip.Nodesel):
+    def __init__(self):
         super().__init__()
-        self.policy = policy
-        self.device = device
-        self.name = name
-
         self.iter_count = 0
-        self.total_iters = 0
-        self.on_no_children_iters = 0
-        self.on_children_iters = 0
-
-    def __str__(self):
-        return self.name
 
     def nodeselect(self):
         self.iter_count += 1
@@ -53,6 +43,17 @@ class NodeselPolicy(scip.Nodesel):
                 return {'selnode': selnode}
 
         return {'selnode': self.model.getBestboundNode()}
+
+
+class NodeselPolicy(NodeselSomething):
+    def __init__(self, policy, device, name):
+        super().__init__()
+        self.policy = policy
+        self.device = device
+        self.name = name
+
+    def __str__(self):
+        return self.name
 
     def nodecomp(self, node1, node2):
         if node1.getParent() != node2.getParent(): return 0

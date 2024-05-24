@@ -37,6 +37,15 @@ class NodeselBFS(scip.Nodesel):
         return "BFS"
 
 
+class NodeselRandom(nodesel_policy.NodeselPolicy):
+    def __init__(self, device, name):
+        super().__init__(None, device, name)
+        self.random = np.random.default_rng(args.seed)
+
+    def nodecomp(self, node1, node2):
+        return -1 if self.random.random() < 0.5 else 1
+
+
 def evaluate(in_queue, out_queue, nodesel, static):
     """
     Worker loop: fetch an instance, run an episode and record samples.
@@ -92,9 +101,9 @@ def evaluate(in_queue, out_queue, nodesel, static):
                 'nlps': m.getNLPs(),
                 'gap': m.getGap(),
                 'nsols': m.getNBestSolsFound(),
-                'solve_time': m.getSolvingTime(),
-                'wall_time': wall_time,
-                'proc_time': proc_time,
+                'stime': m.getSolvingTime(),
+                'walltime': wall_time,
+                'proctime': proc_time,
             })
 
             m.freeProb()
@@ -105,8 +114,6 @@ def evaluate(in_queue, out_queue, nodesel, static):
             'nnodes': np.mean(num_nodes),
             'solve_time': np.mean(solvetime),
         })
-
-        # do something with the average nodes and time
 
 
 def collect_evaluation(instances, seed, n_jobs, nodesel, static, result_file):
@@ -144,9 +151,9 @@ def collect_evaluation(instances, seed, n_jobs, nodesel, static, result_file):
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
         writer.writeheader()
 
-        for _ in trange(5 * len(instances)):
+        for _ in trange(6 * len(instances)):
             try:
-                answer = out_queue.get(timeout=150)
+                answer = out_queue.get(timeout=160)
             # if no response is given in time_limit seconds,
             # the solver has crashed and the worker is dead:
             # start a new worker to pick up the pieces.
@@ -221,12 +228,12 @@ if __name__ == "__main__":
         os.environ['CUDA_VISIBLE_DEVICES'] = f'{args.gpu}'
         device = f"cuda:0"
 
-    # Default: BestEstimate, BFS
-    # nodesels = []
-    nodesels = [None, NodeselBFS()]
+    # Default: BestEstimate, BFS, Random
+    nodesels = []
+    # nodesels = [None, NodeselBFS(), NodeselRandom(device, "random")]
 
     # Learned models
-    for model_id in ["il", "rl_mdp"]:
+    for model_id in ["il"]:  # "il", "rl_mdp"
         model_path = f'actor/{args.problem}/{model_id}.pkl'
         if os.path.exists(model_path):
             model = ml.MLPPolicy().to(device)
@@ -246,12 +253,13 @@ if __name__ == "__main__":
         'nlps',
         'gap',
         'nsols',
-        'solve_time',
-        'wall_time',
-        'proc_time',
+        'stime',
+        'walltime',
+        'proctime',
     ]
 
-    for instance_type in [None]:  # "test", "transfer"
+    results = {}
+    for instance_type in ["test", "transfer"]:
         transfer_difficulty = {
             'indset': "1000_4",
             'gisp': "80_0.5",
@@ -261,17 +269,19 @@ if __name__ == "__main__":
             'setcover': "500_1000_0.05",
             'cauctions': "200_1000"
         }[args.problem]
-        difficulty = transfer_difficulty if args.instance_type == "transfer" else config['difficulty'][args.problem]
-        instance_dir = f'data/{args.problem}/instances/{args.instance_type}_{difficulty}'
+        difficulty = transfer_difficulty if instance_type == "transfer" else config['difficulty'][args.problem]
+        instance_dir = f'data/{args.problem}/instances/{instance_type}_{difficulty}'
         instances = glob.glob(instance_dir + '/*.lp')
 
         timestamp = time.strftime('%Y-%m-%d--%H.%M.%S')
         experiment_dir = f'experiments/{args.problem}/05_evaluate'
         running_dir = experiment_dir + f'/{args.seed}_{timestamp}'
         os.makedirs(running_dir, exist_ok=True)
+
         for nodesel in nodesels:
             for static in [True, False]:
-                experiment_id = str(nodesel) + "_static" if static else ""
+                experiment_id = str(nodesel) + ("_static" if static else "")
                 result_file = os.path.join(running_dir, f'{experiment_id}_results.csv')
                 stats = collect_evaluation(instances, args.seed, args.njobs, nodesel, static, result_file)
-                print(stats)
+                results[experiment_id] = stats
+    print(results)
