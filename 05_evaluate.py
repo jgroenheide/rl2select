@@ -2,8 +2,7 @@
 # Evaluate all GCNN models (il, mdp, tmdp+DFS, tmdp+ObjLim) and SCIP's default  #
 # rule, on 2 benchmarks (test and transfer). Each instance-model pair is solved #
 # with 5 different seeds. Output is written into a csv file.                    #
-# Usage:                                                                        #
-# python 05_evaluate.py <type> -g <cudaId>                                      #
+# Usage: python 05_evaluate.py <type> -g <cudaId>                               #
 # * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * #
 
 import os
@@ -134,7 +133,7 @@ def collect_evaluation(instances, seed, n_jobs, nodesel, static, result_file):
     out_queue = mp.Queue()
     for instance in instances:
         in_queue.put([instance, seed])
-    print(f"{5 * len(instances)} instances on queue.")
+    print(f"{len(instances)} instances on queue.")
 
     workers = []
     for i in range(n_jobs):
@@ -196,11 +195,6 @@ if __name__ == "__main__":
         choices=config['problems'],
     )
     parser.add_argument(
-        'instance_type',
-        help='Type of instances to sample',
-        choices=['test', 'transfer'],
-    )
-    parser.add_argument(
         '-s', '--seed',
         help='Random generator seed.',
         default=config['seed'],
@@ -243,7 +237,6 @@ if __name__ == "__main__":
             nodesels.append(nodesel)
 
     print(f"problem: {args.problem}")
-    print(f"type: {args.instance_type}")
     print(f"gpu: {args.gpu}")
 
     fieldnames = [
@@ -258,17 +251,17 @@ if __name__ == "__main__":
         'proctime',
     ]
 
+    transfer_difficulty = {
+        'indset': "1000_4",
+        'gisp': "80_0.5",
+        'mkp': "100_12",
+        'cflp': "60_35_5",
+        'fcmcnf': "30_45_100",
+        'setcover': "500_1000_0.05",
+        'cauctions': "200_1000"
+    }[args.problem]
     results = {}
     for instance_type in ["test", "transfer"]:
-        transfer_difficulty = {
-            'indset': "1000_4",
-            'gisp': "80_0.5",
-            'mkp': "100_12",
-            'cflp': "60_35_5",
-            'fcmcnf': "30_45_100",
-            'setcover': "500_1000_0.05",
-            'cauctions': "200_1000"
-        }[args.problem]
         difficulty = transfer_difficulty if instance_type == "transfer" else config['difficulty'][args.problem]
         instance_dir = f'data/{args.problem}/instances/{instance_type}_{difficulty}'
         instances = glob.glob(instance_dir + '/*.lp')
@@ -280,7 +273,7 @@ if __name__ == "__main__":
 
         for nodesel in nodesels:
             for static in [True, False]:
-                experiment_id = f'{instance_type}_{nodesel}{"_static" if static else ""}'
+                experiment_id = f'{instance_type}_{"static" if static else "active"}_{nodesel}'
                 result_file = os.path.join(running_dir, f'{experiment_id}_results.csv')
                 stats = collect_evaluation(instances, args.seed, args.njobs, nodesel, static, result_file)
                 results[experiment_id] = stats

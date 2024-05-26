@@ -119,11 +119,14 @@ if __name__ == '__main__':
     paramfile = running_dir + f'/best_params_rl-{args.mode}.pkl'
     wb.init(project="rl2select", config=config)
 
+    static = False
+
     log(f"training instances: {len(train_files)}", logfile)
     log(f"validation instances: {len(valid_files)}", logfile)
     log(f"max epochs: {config['num_epochs']}", logfile)
     log(f"learning rate: {config['lr_train_rl']}", logfile)
     log(f"problem: {args.problem}", logfile)
+    log(f"static?: {static}", logfile)
     log(f"gpu: {args.gpu}", logfile)
     log(f"seed {args.seed}", logfile)
 
@@ -132,7 +135,6 @@ if __name__ == '__main__':
     agent_pool.start()
 
     # Already start jobs  [CREATE]
-    static = True
     train_batch = next(batch_generator)
     sample_rate = config['sample_rate']
     t_next = agent_pool.start_job(train_batch, sample_rate, static, greedy=False)
@@ -233,7 +235,7 @@ if __name__ == '__main__':
 
     log(f"Done. Elapsed time: {elapsed_time}", logfile)
     os.makedirs(f'actor/{args.problem}', exist_ok=True)
-    shutil.copy(paramfile, f'actor/{args.problem}/rl_{args.mode}.pkl')
+    shutil.copy(paramfile, f'actor/{args.problem}/rl_{args.mode}_active.pkl')
 
     v_access.set()
     t_access.set()
