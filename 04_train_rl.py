@@ -122,7 +122,7 @@ if __name__ == '__main__':
     paramfile = running_dir + f'/best_params_rl-{args.mode}.pkl'
     wb.init(project="rl2select", config=config)
 
-    static = False
+    static = True
 
     log(f"training instances: {len(train_files)}", logfile)
     log(f"validation instances: {len(valid_files)}", logfile)
