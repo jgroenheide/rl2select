@@ -71,7 +71,6 @@ class NodeselAgent(NodeselSomething):
 
         GUB = self.model.getUpperbound()
         if self.model.isEQ(GUB, self.opt_sol):
-            print("solution found: stopping")
             self.model.interruptSolve()
 
         state1, state2 = extract.extract_MLP_state(self.model, node1, node2)
