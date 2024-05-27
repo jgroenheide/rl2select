@@ -70,7 +70,8 @@ class NodeselAgent(NodeselSomething):
         if node1.getParent() != node2.getParent(): return 0
 
         GUB = self.model.getUpperbound()
-        if self.static and self.model.isEQ(GUB, self.opt_sol):
+        if self.model.isEQ(GUB, self.opt_sol):
+            print("solution found: stopping")
             self.model.interruptSolve()
 
         state1, state2 = extract.extract_MLP_state(self.model, node1, node2)

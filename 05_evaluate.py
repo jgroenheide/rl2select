@@ -184,7 +184,7 @@ def collect_evaluation(instances, seed, n_jobs, nodesel, static, result_file):
 
 if __name__ == "__main__":
     # read default config file
-    with open("config.json", 'r') as f:
+    with open('config.json') as f:
         config = json.load(f)
 
     # read command-line arguments

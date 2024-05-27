@@ -23,7 +23,7 @@
   "valid_freq": 20,
 
   "problems": ["indset", "gisp", "cflp", "fcmcnf", "setcover", "mkp", "cauctions"],
-  "num_instances": [["train", 4000], ["valid", 1000], ["test", 50], ["transfer", 50]],
+  "num_instances": [["train", 2000], ["valid", 1000], ["test", 50], ["transfer", 50]],
   "difficulty": {
     "indset": "500_4",
     "gisp": "60_0.5",

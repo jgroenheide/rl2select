@@ -23,7 +23,7 @@ from scipy.stats.mstats import gmean
 
 if __name__ == '__main__':
     # read default config file
-    with open("config.json", 'r') as f:
+    with open('config.json') as f:
         config = json.load(f)
 
     # read command-line arguments
@@ -36,8 +36,13 @@ if __name__ == '__main__':
     parser.add_argument(
         'mode',
         help='Training mode.',
-        choices=['mdp', 'tmdp+DFS', 'tmdp+ObjLim'],
+        choices=["mdp", "tmdp+DFS", "tmdp+ObjLim"],
     )
+    # parser.add_argument(
+    #     'static',
+    #     help='Training mode',
+    #     type=bool
+    # )
     parser.add_argument(
         '-s', '--seed',
         help='Random generator seed.',
@@ -69,11 +74,9 @@ if __name__ == '__main__':
     rng = np.random.default_rng(args.seed)
     th.manual_seed(args.seed)
 
-    # data
-    difficulty = config['difficulty'][args.problem]
-
     # recover training / validation instances and collect
     # the pre-computed optimal solutions for the instances
+    difficulty = config['difficulty'][args.problem]
     instance_dir = f'data/{args.problem}/instances'
     train_files = [str(file).replace('\\', '/') for file in
                    glob.glob(instance_dir + f'/train_{difficulty}/*.lp')]
@@ -126,7 +129,7 @@ if __name__ == '__main__':
     log(f"max epochs: {config['num_epochs']}", logfile)
     log(f"learning rate: {config['lr_train_rl']}", logfile)
     log(f"problem: {args.problem}", logfile)
-    log(f"static?: {static}", logfile)
+    log(f"static: {static}", logfile)
     log(f"gpu: {args.gpu}", logfile)
     log(f"seed {args.seed}", logfile)
 

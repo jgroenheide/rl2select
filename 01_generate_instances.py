@@ -350,11 +350,16 @@ def generate_capacitated_facility_location(n_customers, n_facilities, ratio, fil
     capacities = capacities.astype(int)
 
     # transportation costs
-    c_x = random.random(n_customers).reshape((-1, 1))
-    c_y = random.random(n_customers).reshape((-1, 1))
+    # c_x = random.random(n_customers).reshape((-1, 1))
+    # c_y = random.random(n_customers).reshape((-1, 1))
+    #
+    # f_x = random.random((n_facilities,))
+    # f_y = random.random((n_facilities,))
 
-    f_x = random.random((n_facilities,))
-    f_y = random.random((n_facilities,))
+    c_x = random.random((n_customers,))
+    c_y = random.random((n_customers,))
+    f_x = random.random((n_customers,))
+    f_y = random.random((n_customers,))
 
     trans_costs = np.sqrt((c_x - f_x) ** 2 + (c_y - f_y) ** 2) * 10 * demands.reshape((-1, 1))
     trans_costs = trans_costs.astype(int)
@@ -716,7 +721,7 @@ def generate_cauctions(n_items, n_bids, filename, random, min_value=1, max_value
 
 if __name__ == '__main__':
     # read default config file
-    with open('config.json', 'r') as f:
+    with open('config.json') as f:
         config = json.load(f)
 
     parser = argparse.ArgumentParser()
