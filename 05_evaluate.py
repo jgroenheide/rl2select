@@ -223,14 +223,14 @@ if __name__ == "__main__":
         device = f"cuda:0"
 
     # Default: BestEstimate, BFS, Random
-    nodesels = []
-    # nodesels = [None, NodeselBFS(), NodeselRandom(device, "random")]
+    # nodesels = []
+    nodesels = [None, NodeselBFS(), NodeselRandom(device, "random")]
     model = ml.MLPPolicy().to(device)
     nodesel = nodesel_policy.NodeselPolicy(model, device, "policy")
     nodesels.append(nodesel)
 
     # Learned models
-    for model_id in []:  # "il", "rl_mdp"
+    for model_id in ["il", "rl_mdp"]:
         model_path = f'actor/{args.problem}/{model_id}.pkl'
         if os.path.exists(model_path):
             model = ml.MLPPolicy().to(device)
