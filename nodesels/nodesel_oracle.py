@@ -85,6 +85,7 @@ class NodeselOracle(NodeselEstimate):
             print("early stopping")
             self.model.interruptSolve()
         if self.sampling == "Children":
+            assert self.model.getNSiblings() < 2
             self.model.getBestChild()
         elif self.sampling == "Nodes":
             self.model.getBestNode()

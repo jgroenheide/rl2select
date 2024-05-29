@@ -338,7 +338,7 @@ def generate_capacitated_facility_location(n_customers, n_facilities, ratio, fil
         A random number generator.
     """
     demands = random.integers(5, 35, size=n_customers)
-    capacities = random.integers(10, 160, size=n_facilities)
+    capacities = random.integers(16, 64, size=n_facilities)  # original: 10, 160
     fixed_costs = (random.integers(100, 110, size=n_facilities) * np.sqrt(capacities) +
                    random.integers(90, size=n_facilities)).astype(int)
 
@@ -350,16 +350,11 @@ def generate_capacitated_facility_location(n_customers, n_facilities, ratio, fil
     capacities = capacities.astype(int)
 
     # transportation costs
-    # c_x = random.random(n_customers).reshape((-1, 1))
-    # c_y = random.random(n_customers).reshape((-1, 1))
-    #
-    # f_x = random.random((n_facilities,))
-    # f_y = random.random((n_facilities,))
+    c_x = random.random(n_customers).reshape((-1, 1))
+    c_y = random.random(n_customers).reshape((-1, 1))
 
-    c_x = random.random((n_customers,))
-    c_y = random.random((n_customers,))
-    f_x = random.random((n_customers,))
-    f_y = random.random((n_customers,))
+    f_x = random.random((n_facilities,))
+    f_y = random.random((n_facilities,))
 
     trans_costs = np.sqrt((c_x - f_x) ** 2 + (c_y - f_y) ** 2) * 10 * demands.reshape((-1, 1))
     trans_costs = trans_costs.astype(int)

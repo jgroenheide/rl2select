@@ -75,8 +75,8 @@ class NodeselAgent(NodeselSomething):
         })
 
         self.iter_count += 1
-        # avoid too large trees during training for stability
-        if self.iter_count > 50000 and not self.greedy:
+        # avoid too large trees for stability
+        if self.iter_count > 50000:
             self.model.interruptSolve()
 
         return 1 if action > 0.5 else -1

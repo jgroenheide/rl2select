@@ -6,10 +6,8 @@ import pyscipopt as scip
 class NodeselSomething(scip.Nodesel):
     def __init__(self):
         super().__init__()
-        self.iter_count = 0
 
     def nodeselect(self):
-        self.iter_count += 1
         # calculate minimal and maximal plunging depth
         min_plunge_depth = int(self.model.getMaxDepth() / 10)
         if self.model.getNStrongbranchLPIterations() > 2*self.model.getNNodeLPIterations():
@@ -22,6 +20,7 @@ class NodeselSomething(scip.Nodesel):
         # check if we are within the maximal plunging depth
         plunge_depth = self.model.getPlungeDepth()
         selnode = self.model.getBestChild()
+        # possibly choose sibling if child is None
         if plunge_depth <= max_plunge_depth and selnode is not None:
             # get global lower and cutoff bound
             lower_bound = self.model.getLowerbound()

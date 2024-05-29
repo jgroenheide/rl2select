@@ -148,6 +148,11 @@ for state, _ in valid_loader:
     stats_max = np.maximum(stats_max, state_max)
 ```
 
+Goal: I want to know (during the generation process):
+      - Percentage of generated problems that pass
+      - Average number of nodes needed to finish  (~200)
+      - Standard deviation on the number of nodes (~100)
+
 Experiments:
 IL:
 - K sols: [1, 10]

@@ -18,9 +18,9 @@
   "entropy_bonus": 1e-5,
 
   "episodes_per_epoch": 10,
-  "num_valid_instances": 20,
+  "num_valid_instances": 50,
   "num_valid_seeds": 1,
-  "valid_freq": 20,
+  "valid_freq": 50,
 
   "problems": ["indset", "gisp", "cflp", "fcmcnf", "setcover", "mkp", "cauctions"],
   "num_instances": [["train", 2000], ["valid", 1000], ["test", 50], ["transfer", 50]],

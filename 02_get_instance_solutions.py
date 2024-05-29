@@ -11,10 +11,11 @@ import shutil
 import argparse
 import importlib
 import utilities
-import numpy as np
-import networkx as nx
-import pyscipopt as scip
+
 import multiprocessing as mp
+import networkx as nx
+import numpy as np
+import pyscipopt as scip
 
 from tqdm import trange
 
@@ -56,7 +57,8 @@ def solve_instance(in_queue, out_queue, k_sols):
                 m.writeSol(sol, filename)
             out_queue.put({'filename': instance,
                            'num_sols': len(solutions),
-                           'opt_sol': m.getObjVal()})
+                           'opt_sol': m.getObjVal(),
+                           'nnodes': m.getNNodes()})
 
         m.freeProb()
         in_queue.task_done()
@@ -250,6 +252,8 @@ def collector(problem, config, n_jobs, k_sols, random):
 
     tmp_dirs = []
     obj_values = {}
+
+    nnodes = []
     for instance_type, num_instances in config['num_instances']:
         if instance_type == "transfer":
             # Stop the dispatcher
@@ -284,6 +288,7 @@ def collector(problem, config, n_jobs, k_sols, random):
                 for j in range(instance['num_sols']):
                     os.rename(f'{old_filename[:-3]}-{j + 1}.sol',
                               f'{new_filename[:-3]}-{j + 1}.sol')
+                nnodes.append(instance['nnodes'])
             else:  # instance_type in ["test", "transfer"]
                 tmp_dirs.append(tmp_dir)
 
@@ -292,6 +297,8 @@ def collector(problem, config, n_jobs, k_sols, random):
     # secure objective values as soon as possible to avoid losing data
     with open(f'data/{problem}/instances/obj_values.json', "w") as f:
         json.dump(obj_values, f)
+
+    print({'nnodes_mean': np.mean(nnodes), 'nnodes_std': np.std(nnodes)})
 
     # stop all workers (hard)
     dispatcher.terminate()

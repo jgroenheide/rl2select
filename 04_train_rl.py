@@ -81,7 +81,7 @@ if __name__ == '__main__':
     train_files = [str(file).replace('\\', '/') for file in
                    glob.glob(instance_dir + f'/train_{difficulty}/*.lp')]
     valid_files = [str(file).replace('\\', '/') for file in
-                   glob.glob(instance_dir + f'/valid_{difficulty}/*.lp')]
+                   glob.glob(instance_dir + f'/valid_{difficulty}/*.lp')[:config['num_valid_instances']]]
 
     # if not os.path.exists(instance_dir + f'/obj_values.json'):
     #     print("obj_values.json not found. Creating from instance_solutions")
@@ -125,7 +125,7 @@ if __name__ == '__main__':
     static = True
 
     log(f"training instances: {len(train_files)}", logfile)
-    log(f"validation instances: {len(valid_files)}", logfile)
+    log(f"validation instances: {config['num_valid_instances']}", logfile)
     log(f"max epochs: {config['num_epochs']}", logfile)
     log(f"learning rate: {config['lr_train_rl']}", logfile)
     log(f"problem: {args.problem}", logfile)
