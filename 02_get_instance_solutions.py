@@ -41,6 +41,11 @@ def solve_instance(in_queue, out_queue, k_sols):
         m = scip.Model()
         m.hideOutput()
         m.readProblem(instance)
+
+        # 1: CPU user seconds, 2: wall clock time
+        m.setIntParam('timing/clocktype', 1)
+        m.setRealParam('limits/time', 30)
+
         m.optimize()
 
         # Statistics to help tune new problems
@@ -49,7 +54,7 @@ def solve_instance(in_queue, out_queue, k_sols):
         print(f"NSols: {m.getNBestSolsFound()}")
         print(f"MaxDepth: {m.getMaxDepth()}")
 
-        if m.getStatus() == "optimal" and m.getNNodes() > 100:
+        if m.getStatus() == "optimal" and 100 < m.getNNodes() < 1000:
             # retrieve and save solutions to individual files
             solutions = m.getSols()[:k_sols]
             for i, sol in enumerate(solutions):
@@ -101,15 +106,14 @@ def generate_instances(orders_queue, problem, random, transfer=False):
 
     elif problem == "mkp":
         n_items = 100
-        n_knapsacks = 12 if transfer else 6
+        n_knapsacks = 8 if transfer else 4
         tmp_dir = out_dir + f'/tmp_{n_items}_{n_knapsacks}'
         os.makedirs(tmp_dir, exist_ok=True)
 
         episode = 1
         while True:
             filename = tmp_dir + f'/instance_{episode}.lp'
-            weights, values = gen.generate_weights_and_values(n_items, rng, scheme='subset-sum')
-            gen.generate_mknapsack(n_items, n_knapsacks, weights, values, filename, rng)
+            gen.generate_mknapsack(n_items, n_knapsacks, filename, rng)
             # blocks the process until a slot in the queue is available
             orders_queue.put([filename, random.integers(2 ** 31)])
             episode += 1

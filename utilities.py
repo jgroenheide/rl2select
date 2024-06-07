@@ -40,7 +40,7 @@ def valid_seed(seed):
 
 
 def log(log_message, logfile=None):
-    out = f'[{datetime.datetime.now()}] {log_message}'
+    out = f"[{datetime.datetime.now()}] {log_message}"
     print(out)
     if logfile is not None:
         with open(logfile, mode='a') as f:

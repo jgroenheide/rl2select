@@ -14,9 +14,8 @@ class Brain:
         self.config = config
         self.device = device
         self.actor = ml.MLPPolicy().to(device)
-        self.optimizer = th.optim.Adam(self.actor.parameters(),
-                                       lr=self.config['lr_train_rl'],
-                                       maximize=True)
+        self.optimizer = th.optim.Adam(params=self.actor.parameters(),
+                                       lr=self.config['lr_train_rl'])
         self.random = np.random.RandomState(seed=self.config['seed'])
 
     def sample_actions(self, requests):
@@ -53,6 +52,8 @@ class Brain:
             # REINFORCE
             log_probs = dist.log_prob(batch['action'])
             reinforce_loss = - (batch['returns'] * log_probs).sum()
+            # loss = - (-10 * -1) = -10
+            # loss = - (-20 * -1) = -20
             reinforce_loss /= n_samples
             loss += reinforce_loss
 

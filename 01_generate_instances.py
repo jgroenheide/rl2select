@@ -243,7 +243,7 @@ def generate_weights_and_values(n_items, random, min_range=10, max_range=20, sch
         raise NotImplementedError
     return weights, values
 
-def generate_knapsack(n_items, weights, values, filename):
+def generate_knapsack(n_items, filename, random):
     """
     Generation of (hard) knapsack as described by:
         Moura, L. F. D. S. (2013). An efficient dynamic programming algorithm for the unbounded knapsack problem.
@@ -254,13 +254,12 @@ def generate_knapsack(n_items, weights, values, filename):
     ----------
     n_items : int
         The number of items.
-    weights : np.Array
-        List of weights
-    values : list[int]
-        List of values
     filename : str
         Path to the file to save.
+    random : numpy.random.Generator
+        A random number generator.
     """
+    weights, values = generate_weights_and_values(n_items, random)
     capacity = 0.5 * weights.sum()
     with open(filename, 'w') as file:
         file.write("maximize\nOBJ:")
@@ -271,7 +270,7 @@ def generate_knapsack(n_items, weights, values, filename):
         file.write("\n\ninteger\n")
         file.write(" ".join([f"x_{i + 1}" for i in range(len(values))]))
 
-def generate_mknapsack(n_items, n_knapsacks, weights, values, filename, random):
+def generate_mknapsack(n_items, n_knapsacks, filename, random):
     """
     Generate a Multiple Knapsack problem following a scheme among those found in section 2.1. of
         Fukunaga, Alex S. (2011). A branch-and-bound algorithm for hard multiple knapsack problems.
@@ -290,6 +289,7 @@ def generate_mknapsack(n_items, n_knapsacks, weights, values, filename, random):
     random : numpy.random.Generator
         A random number generator.
     """
+    weights, values = generate_weights_and_values(n_items, random)  # scheme='subset-sum'
     capacities = np.zeros(n_knapsacks, dtype=int)
     capacities[:-1] = random.integers(0.4 * weights.sum() // n_knapsacks,
                                       0.6 * weights.sum() // n_knapsacks,
@@ -338,7 +338,7 @@ def generate_capacitated_facility_location(n_customers, n_facilities, ratio, fil
         A random number generator.
     """
     demands = random.integers(5, 35, size=n_customers)
-    capacities = random.integers(16, 64, size=n_facilities)  # original: 10, 160
+    capacities = random.integers(10, 60, size=n_facilities)  # original: 10, 160
     fixed_costs = (random.integers(100, 110, size=n_facilities) * np.sqrt(capacities) +
                    random.integers(90, size=n_facilities)).astype(int)
 
@@ -373,7 +373,7 @@ def generate_capacitated_facility_location(n_customers, n_facilities, ratio, fil
             file.write(f"demand_{i + 1}: " +
                        " + ".join([f"x_{i + 1}_{j + 1}"
                                    for j in range(n_facilities)])
-                       + f" = 1\n")
+                       + f" => 1\n")
         for j in range(n_facilities):
             file.write(f"capacity_{j + 1}: " +
                        " + ".join([f"{demands[i]}x_{i + 1}_{j + 1}"
@@ -772,8 +772,7 @@ if __name__ == '__main__':
             os.makedirs(out_dir); print(f"{num_instances} instances in {out_dir}")
             for i in trange(num_instances):
                 filename = os.path.join(out_dir, f'instance_{i + 1}.lp')
-                weights, values = generate_weights_and_values(n_items, rng, scheme='subset-sum')
-                generate_mknapsack(n_items, n_knapsacks, weights, values, filename, rng)
+                generate_mknapsack(n_items, n_knapsacks, filename, rng)
 
     elif args.problem == "cflp":
         n_facilities = 35

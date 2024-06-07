@@ -1,5 +1,6 @@
 import threading
 import queue
+import numpy as np
 
 from pyscipopt import scip
 
@@ -146,15 +147,16 @@ class Agent(threading.Thread):
             # Run episode
             # Everything from here... -------------------------------------------------------------------
             m = scip.Model()
-            m.setIntParam('display/verblevel', 0)
+            m.hideOutput()
             m.readProblem(instance['path'])
             utilities.init_scip_params(m, instance['seed'], task['static'])
             m.setIntParam('timing/clocktype', 2)  # 1: CPU user seconds, 2: wall clock time
             m.setRealParam('limits/time', self.time_limit)
 
+            rng = np.random.default_rng(instance['seed'])
             nodesel_agent = NodeselAgent(instance=instance['path'],
                                          opt_sol=instance['sol'],
-                                         seed=instance['seed'],
+                                         random=rng,
                                          greedy=task['greedy'],
                                          static=task['static'],
                                          sample_rate=sample_rate,

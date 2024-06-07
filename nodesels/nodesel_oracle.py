@@ -85,7 +85,6 @@ class NodeselOracle(NodeselEstimate):
             print("early stopping")
             self.model.interruptSolve()
         if self.sampling == "Children":
-            assert self.model.getNSiblings() < 2
             self.model.getBestChild()
         elif self.sampling == "Nodes":
             self.model.getBestNode()
@@ -142,18 +141,17 @@ class NodeselOracle(NodeselEstimate):
         # return super().nodeselect()
 
     def nodecomp(self, node1, node2):
-        if (self.sampling == "Children" and
-                node1.getParent() != node2.getParent()):
+        siblings = node1.getParent() == node2.getParent()
+        if self.sampling == "Children" and not siblings:
             return super().nodecomp(node1, node2)
-
-        # node1_lb = node1.getLowerbound()
-        # node2_lb = node2.getLowerbound()
-        # print(f"node {node1.getNumber()}: {node1_lb} | node {node2.getNumber()}: {node2_lb}")
-        # print(f"global_lb: {self.model.getLowerbound()} | global_ub: {self.model.getUpperbound()}")
 
         sol_rank = [self.k_sols, self.k_sols]
         for node_index, node in enumerate([node1, node2]):
             node_number = node.getNumber()
+            if node_number in self.sol_indices:
+                sol_index = self.sol_indices[node_number][0]
+                sol_rank[node_index] = sol_index
+                continue
             # If the parent node contained the optimal sol,
             # it is sufficient to only check the new bounds
             parent_number = node.getParent().getNumber()

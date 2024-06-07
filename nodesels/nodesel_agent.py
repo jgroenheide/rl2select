@@ -1,28 +1,30 @@
 import queue
 import extract
-import numpy as np
 import torch as th
-import pyscipopt as scip
 
-from nodesels.nodesel_policy import NodeselSomething
+from nodesels.nodesel_policy import NodeselPolicy
 
 
-class NodeselAgent(NodeselSomething):
-    def __init__(self, instance, opt_sol, seed, greedy, static, sample_rate, requests_queue):
-        super().__init__()
+class NodeselAgent(NodeselPolicy):
+    def __init__(self, instance, opt_sol, random, greedy, static, sample_rate, requests_queue):
+        super().__init__(opt_sol)
         # self.model = model
         self.receiver_queue = queue.Queue()
         self.requests_queue = requests_queue
+
         self.instance = instance
-        self.opt_sol = opt_sol
-        self.seed = seed
-        self.rng = np.random.default_rng(seed)
+        self.random = random
         self.greedy = greedy
         self.static = static
+
         self.sample_rate = sample_rate
         self.tree_recorder = TreeRecorder() if sample_rate > 0 else None
         self.transitions = []
+
         self.penalty = 0
+        self.GUB = None
+        self.gap = None
+        self.gamma = 1
 
         self.iter_count = 0
         self.info = {
@@ -31,12 +33,12 @@ class NodeselAgent(NodeselSomething):
             'time': 0,  # ecole.reward.SolvingTime().cumsum()
         }
 
+    def nodeinit(self, *args, **kwargs):
+        self.GUB = self.model.getUpperbound()
+        self.gap = self.GUB - self.opt_sol
+
     def nodecomp(self, node1, node2):
         if node1.getParent() != node2.getParent(): return 0
-
-        GUB = self.model.getUpperbound()
-        if self.model.isEQ(GUB, self.opt_sol):
-            self.model.interruptSolve()
 
         state1, state2 = extract.extract_MLP_state(self.model, node1, node2)
         state = (th.tensor(state1, dtype=th.float32),
@@ -47,9 +49,13 @@ class NodeselAgent(NodeselSomething):
                                  'greedy': self.greedy,
                                  'receiver': self.receiver_queue})
         action = self.receiver_queue.get()  # LEFT:0, RIGHT:1
+        reward = 0
+
+        # reward = self.gamma * (self.GUB - GUB) / self.gap  # For primal bound improvement
+        # self.GUB = GUB
+        # self.gamma *= 0.99
 
         # self.penalty = self.model.getNNodes()  # For global tree size
-        # self.penalty = self.model.getUpperbound()  # For primal bound improvement
 
         # For optimality-bound penalty
         lower_bound = self.model.getCurrentNode().getLowerbound()
@@ -59,11 +65,12 @@ class NodeselAgent(NodeselSomething):
         # collect transition samples if requested
         if self.sample_rate > 0:
             focus_node = self.model.getCurrentNode()
-            self.tree_recorder.record_branching_decision(focus_node)
-            if self.rng.random() < self.sample_rate:
+            self.tree_recorder.record_decision(focus_node)
+            if self.random.random() < self.sample_rate:
                 node_number = focus_node.getNumber()
                 self.transitions.append({'state': state,
                                          'action': action,
+                                         'reward': reward,
                                          'penalty': self.penalty,
                                          'node_id': node_number,
                                          })
@@ -96,7 +103,7 @@ class TreeRecorder:
         self.tree = {}
         self.depth_groups = []
 
-    def record_branching_decision(self, focus_node):
+    def record_decision(self, focus_node):
         parent_node = focus_node.getParent()
         node_number = focus_node.getNumber()
         parent_number = (0 if node_number == 1 else

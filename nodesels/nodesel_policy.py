@@ -3,11 +3,18 @@ import torch as th
 import pyscipopt as scip
 
 
-class NodeselSomething(scip.Nodesel):
-    def __init__(self):
+# The standard nodesel wrapper for all policies
+class NodeselPolicy(scip.Nodesel):
+    def __init__(self, opt_sol):
         super().__init__()
+        # self.model = model
+        self.opt_sol = opt_sol
 
     def nodeselect(self):
+        GUB = self.model.getUpperbound()
+        if self.model.isEQ(GUB, self.opt_sol):
+            self.model.interruptSolve()
+
         # calculate minimal and maximal plunging depth
         min_plunge_depth = int(self.model.getMaxDepth() / 10)
         if self.model.getNStrongbranchLPIterations() > 2*self.model.getNNodeLPIterations():
@@ -44,9 +51,9 @@ class NodeselSomething(scip.Nodesel):
         return {'selnode': self.model.getBestboundNode()}
 
 
-class NodeselPolicy(NodeselSomething):
-    def __init__(self, policy, device, name):
-        super().__init__()
+class NodeselEvaluator(NodeselPolicy):
+    def __init__(self, policy, device, name, opt_sol):
+        super().__init__(opt_sol)
         self.policy = policy
         self.device = device
         self.name = name

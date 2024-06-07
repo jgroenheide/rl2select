@@ -250,8 +250,9 @@ def collect_samples(instances, sample_dir, n_jobs, k_sols, max_samples, sampling
 
     if sample_count == 0:
         print("Sampling completed: No sampling info available")
-    class_dist = [f"{x / sample_count:.2f}" for x in action_count]
-    print(f"Sampling completed: (Left, Right): {class_dist}")
+    else:
+        class_dist = [f"{x / sample_count:.2f}" for x in action_count]
+        print(f"Sampling completed: (Left, Right): {class_dist}")
     # with open(sample_dir + '/class_dist.json', "w") as f:
     #     json.dump([x / sample_count for x in action_count], f)
 
@@ -273,15 +274,10 @@ if __name__ == '__main__':
         help='MILP instance type to process.',
         choices=config['problems'],
     )
-    # parser.add_argument(
-    #     'instance_type',
-    #     help='Type of instances to sample',
-    #     choices=['train', 'valid'],
-    # )
     parser.add_argument(
         'sampling_type',
         help='Type of sampling to apply',
-        choices=['Children', 'Nodes'],
+        choices=["Children", "Nodes"],
     )
     parser.add_argument(
         '-s', '--seed',

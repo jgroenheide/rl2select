@@ -95,17 +95,16 @@ if __name__ == '__main__':
     with open(instance_dir + f'/obj_values.json') as f:
         opt_sols = json.load(f)
 
-    valid_batch = [{'path': instance, 'seed': seed, 'sol': opt_sols[instance]}
-                   for instance in valid_files[:config['num_valid_instances']]
-                   for seed in range(config['num_valid_seeds'])]
+    sign = 1 if args.problem in ["cflp"] else -1
+    valid_batch = [{'path': instance, 'seed': seed, 'sol': sign * opt_sols[instance]}
+                   for instance in valid_files for seed in range(config['num_seeds'])]
+    valid_freq = len(valid_batch)
 
 
     def train_batch_generator():
-        sign = 1 if args.problem in ["cflp"] else -1
         while True:
-            train_batches = [{'path': instance, 'seed': rng.integers(0, 2**31), 'sol': sign * opt_sols[instance]}
-                             for instance in rng.choice(train_files, size=config['episodes_per_epoch'], replace=True)]
-            yield train_batches
+            yield [{'path': instance, 'seed': rng.integers(0, 2 ** 31), 'sol': sign * opt_sols[instance]}
+                   for instance in rng.choice(train_files, size=config['episodes_per_epoch'], replace=True)]
 
 
     batch_generator = train_batch_generator()
@@ -125,7 +124,7 @@ if __name__ == '__main__':
     static = True
 
     log(f"training instances: {len(train_files)}", logfile)
-    log(f"validation instances: {config['num_valid_instances']}", logfile)
+    log(f"validation instances: {len(valid_batch)}", logfile)
     log(f"max epochs: {config['num_epochs']}", logfile)
     log(f"learning rate: {config['lr_train_rl']}", logfile)
     log(f"problem: {args.problem}", logfile)
@@ -164,7 +163,7 @@ if __name__ == '__main__':
         else:
             log(f"  training skipped", logfile)
         # VALIDATION #
-        if (epoch % config['valid_freq'] == 0) or (epoch == config['num_epochs']):
+        if (epoch % valid_freq == 0) or (epoch == config['num_epochs']):
             _, v_stats, v_queue, v_access = v_next
             v_access.set()  # Give the validation agents access to the policy!
             log(f"  {len(valid_batch)} validation jobs running (preempted)", logfile)
@@ -181,7 +180,7 @@ if __name__ == '__main__':
             t_next = agent_pool.start_job(train_batch, sample_rate, static, greedy=False)
         # VALIDATION #
         if epoch + 1 <= config['num_epochs']:
-            if ((epoch + 1) % config['valid_freq'] == 0) or ((epoch + 1) == config['num_epochs']):
+            if ((epoch + 1) % valid_freq == 0) or ((epoch + 1) == config['num_epochs']):
                 v_next = agent_pool.start_job(valid_batch, 0.0, static, greedy=True)
 
         # Validate the finished jobs [EVALUATE]
@@ -208,7 +207,7 @@ if __name__ == '__main__':
                 'train_entropy': t_losses['entropy'],
             }, step=epoch)
         # VALIDATION #
-        if (epoch % config['valid_freq'] == 0) or (epoch == config['num_epochs']):
+        if (epoch % valid_freq == 0) or (epoch == config['num_epochs']):
             v_queue.join()  # wait for all validation episodes to be processed
             log("  validation jobs finished", logfile)
 
