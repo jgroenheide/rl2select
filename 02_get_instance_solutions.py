@@ -49,10 +49,10 @@ def solve_instance(in_queue, out_queue, k_sols):
         m.optimize()
 
         # Statistics to help tune new problems
-        print(f"Status: {m.getStatus()}")
-        print(f"NNodes: {m.getNNodes()}")
-        print(f"NSols: {m.getNBestSolsFound()}")
-        print(f"MaxDepth: {m.getMaxDepth()}")
+        # print(f"Status: {m.getStatus()}")
+        # print(f"NNodes: {m.getNNodes()}")
+        # print(f"NSols: {m.getNBestSolsFound()}")
+        # print(f"MaxDepth: {m.getMaxDepth()}")
 
         if m.getStatus() == "optimal" and 100 < m.getNNodes() < 1000:
             # retrieve and save solutions to individual files
