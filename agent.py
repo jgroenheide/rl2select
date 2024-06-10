@@ -149,9 +149,12 @@ class Agent(threading.Thread):
             m = scip.Model()
             m.hideOutput()
             m.readProblem(instance['path'])
-            utilities.init_scip_params(m, instance['seed'], task['static'])
-            m.setIntParam('timing/clocktype', 2)  # 1: CPU user seconds, 2: wall clock time
+
+            # 1: CPU user seconds, 2: wall clock time
+            m.setIntParam('timing/clocktype', 2)
             m.setRealParam('limits/time', self.time_limit)
+            utilities.init_scip_params(m, instance['seed'], task['static'])
+            m.setRealParam('limits/objectivestop', abs(instance['sol']))
 
             rng = np.random.default_rng(instance['seed'])
             nodesel_agent = NodeselAgent(instance=instance['path'],

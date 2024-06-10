@@ -7,12 +7,13 @@ from nodesels.nodesel_policy import NodeselPolicy
 
 class NodeselAgent(NodeselPolicy):
     def __init__(self, instance, opt_sol, random, greedy, static, sample_rate, requests_queue):
-        super().__init__(opt_sol)
+        super().__init__()
         # self.model = model
         self.receiver_queue = queue.Queue()
         self.requests_queue = requests_queue
 
         self.instance = instance
+        self.opt_sol = opt_sol
         self.random = random
         self.greedy = greedy
         self.static = static
@@ -37,6 +38,13 @@ class NodeselAgent(NodeselPolicy):
         self.GUB = self.model.getUpperbound()
         self.gap = self.GUB - self.opt_sol
 
+    # def nodeselect(self):
+    #     GUB = self.model.getUpperbound()
+    #     if self.model.isEQ(GUB, self.opt_sol):
+    #         print("solution reached")
+    #         self.model.interruptSolve()
+    #     return super().nodeselect()
+
     def nodecomp(self, node1, node2):
         if node1.getParent() != node2.getParent(): return 0
 
@@ -51,6 +59,7 @@ class NodeselAgent(NodeselPolicy):
         action = self.receiver_queue.get()  # LEFT:0, RIGHT:1
         reward = 0
 
+        # GUB = self.model.getUpperbound()
         # reward = self.gamma * (self.GUB - GUB) / self.gap  # For primal bound improvement
         # self.GUB = GUB
         # self.gamma *= 0.99

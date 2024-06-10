@@ -5,16 +5,17 @@ import pyscipopt as scip
 
 # The standard nodesel wrapper for all policies
 class NodeselPolicy(scip.Nodesel):
-    def __init__(self, opt_sol):
+    def __init__(self, policy=None, device=None, name=""):
         super().__init__()
         # self.model = model
-        self.opt_sol = opt_sol
+        self.policy = policy
+        self.device = device
+        self.name = name
+
+    def __str__(self):
+        return self.name
 
     def nodeselect(self):
-        GUB = self.model.getUpperbound()
-        if self.model.isEQ(GUB, self.opt_sol):
-            self.model.interruptSolve()
-
         # calculate minimal and maximal plunging depth
         min_plunge_depth = int(self.model.getMaxDepth() / 10)
         if self.model.getNStrongbranchLPIterations() > 2*self.model.getNNodeLPIterations():
@@ -49,17 +50,6 @@ class NodeselPolicy(scip.Nodesel):
                 return {'selnode': selnode}
 
         return {'selnode': self.model.getBestboundNode()}
-
-
-class NodeselEvaluator(NodeselPolicy):
-    def __init__(self, policy, device, name, opt_sol):
-        super().__init__(opt_sol)
-        self.policy = policy
-        self.device = device
-        self.name = name
-
-    def __str__(self):
-        return self.name
 
     def nodecomp(self, node1, node2):
         if node1.getParent() != node2.getParent(): return 0

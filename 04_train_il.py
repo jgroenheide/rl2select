@@ -138,7 +138,7 @@ if __name__ == "__main__":
         valid_loader = DataLoader(valid_data, batch_valid, shuffle=False)
 
         sample_data = data.Dataset(train_files + valid_files)
-        sample_loader = DataLoader(sample_data, batch_size=512)
+        sample_loader = DataLoader(sample_data, batch_size=1024)
         utilities.extract_MLP_statistics(sample_loader, len(sample_data))
     elif config['model'] == "GNN":
         model = ml.GNNPolicy().to(device)

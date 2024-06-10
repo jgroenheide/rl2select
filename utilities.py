@@ -52,9 +52,11 @@ def init_scip_params(model, seed, static=False,
     seed = seed % 2147483648  # SCIP seed range
 
     if static:
-        heuristics = False
-        separating = False
-        conflict = False
+        model.setHeuristics(scip.SCIP_PARAMSETTING.OFF)
+        model.setSeparating(scip.SCIP_PARAMSETTING.OFF)
+        model.setBoolParam('conflict/enable', False)
+        # most infeasible branching is the best static rule
+        model.setIntParam('branching/mostinf/priority', 20000)
 
     # set up randomization
     model.setBoolParam('randomization/permutevars', True)
@@ -95,7 +97,7 @@ def extract_MLP_statistics(data_loader, num_samples):
     stats_max = np.zeros((16,))
     stats_avg = np.zeros((16,))
     for state, _ in data_loader:
-        state = np.concatenate(state, axis=0)  # (1024, 16)
+        state = np.concatenate(state, axis=0)  # (2048, 16)
         stats_min = np.minimum(stats_min, state.min(axis=0))
         stats_max = np.maximum(stats_max, state.max(axis=0))
         stats_avg = np.add(stats_avg, state.sum(axis=0))

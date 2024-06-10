@@ -20,7 +20,7 @@ import pyscipopt as scip
 import multiprocessing as mp
 
 from tqdm import trange
-from nodesels import nodesel_policy
+from nodesels.nodesel_policy import NodeselPolicy
 from scipy.stats import gmean
 
 
@@ -28,17 +28,17 @@ class NodeselBFS(scip.Nodesel):
     def __init__(self):
         super().__init__()
 
+    def __str__(self):
+        return "BFS"
+
     def nodeselect(self):
         selnode = self.model.getBestboundNode()
         return {'selnode': selnode}
 
-    def __str__(self):
-        return "BFS"
 
-
-class NodeselRandom(nodesel_policy.NodeselPolicy):
-    def __init__(self, device, name):
-        super().__init__(None, device, name)
+class NodeselRandom(NodeselPolicy):
+    def __init__(self):
+        super().__init__(name="Random")
         self.random = np.random.default_rng(args.seed)
 
     def nodecomp(self, node1, node2):
@@ -70,13 +70,14 @@ def evaluate(in_queue, out_queue, nodesel, static):
 
             # 1: CPU user seconds, 2: wall clock time
             m.setIntParam('timing/clocktype', 1)
-            m.setRealParam('limits/time', 150)
+            m.setRealParam('limits/time', 90)
             utilities.init_scip_params(m, seed, static)
+            m.setRealParam('limits/objectivestop', instance['sol'])
 
             if nodesel is not None:
                 m.includeNodesel(nodesel=nodesel,
-                                 name="evaluate_nodesel",
-                                 desc="BFS node selector",
+                                 name=f"nodesel_{nodesel}",
+                                 desc="nodesel to be evaluated",
                                  stdpriority=300000,
                                  memsavepriority=300000)
 
@@ -133,7 +134,6 @@ def collect_evaluation(instances, seed, n_jobs, nodesel, static, result_file):
     out_queue = mp.Queue()
     for instance in instances:
         in_queue.put([instance, seed])
-    print(f"{len(instances)} instances on queue.")
 
     workers = []
     for i in range(n_jobs):
@@ -152,11 +152,12 @@ def collect_evaluation(instances, seed, n_jobs, nodesel, static, result_file):
 
         for _ in trange(6 * len(instances)):
             try:
-                answer = out_queue.get(timeout=160)
+                answer = out_queue.get(timeout=100)
             # if no response is given in time_limit seconds,
             # the solver has crashed and the worker is dead:
             # start a new worker to pick up the pieces.
             except queue.Empty:
+                print("starting new worker")
                 p = mp.Process(
                     target=evaluate,
                     args=(in_queue, out_queue, nodesel, static),
@@ -222,21 +223,19 @@ if __name__ == "__main__":
         os.environ['CUDA_VISIBLE_DEVICES'] = f'{args.gpu}'
         device = f"cuda:0"
 
-    # Default: BestEstimate, BFS, Random
-    # nodesels = []
-    nodesels = [None, NodeselBFS(), NodeselRandom(device, "random")]
+    # Default: BestEstimate, BFS, Random, Untrained Policy
     model = ml.MLPPolicy().to(device)
-    nodesel = nodesel_policy.NodeselPolicy(model, device, "policy")
-    nodesels.append(nodesel)
+    nodesels = [None, NodeselBFS(), NodeselRandom(),
+                NodeselPolicy(model, device, "policy")]
+    nodesels = []
 
     # Learned models
-    for model_id in ["il", "rl_mdp"]:
+    for model_id in ["il", "rl_mdp_"]:
         model_path = f'actor/{args.problem}/{model_id}.pkl'
         if os.path.exists(model_path):
             model = ml.MLPPolicy().to(device)
             model.load_state_dict(th.load(model_path))
-            model.eval()
-            nodesel = nodesel_policy.NodeselPolicy(model, device, model_id)
+            nodesel = NodeselPolicy(model, device, model_id)
             nodesels.append(nodesel)
 
     print(f"problem: {args.problem}")
@@ -257,7 +256,7 @@ if __name__ == "__main__":
     transfer_difficulty = {
         'indset': "1000_4",
         'gisp': "80_0.5",
-        'mkp': "100_12",
+        'mkp': "100_8",
         'cflp': "60_35_5",
         'fcmcnf': "30_45_100",
         'setcover': "500_1000_0.05",
@@ -265,9 +264,16 @@ if __name__ == "__main__":
     }[args.problem]
     results = {}
     for instance_type in ["test", "transfer"]:
+        instance_dir = f'data/{args.problem}/instances'
         difficulty = transfer_difficulty if instance_type == "transfer" else config['difficulty'][args.problem]
-        instance_dir = f'data/{args.problem}/instances/{instance_type}_{difficulty}'
-        instances = glob.glob(instance_dir + '/*.lp')
+        instances = [str(file) for file in glob.glob(instance_dir + f'/{instance_type}_{difficulty}/*.lp')]
+
+        # with open(instance_dir + f'/obj_values.json') as f:
+        #     opt_sols = json.load(f)
+        #
+        # sign = 1 if args.problem in ["cflp"] else -1
+        # valid_batch = [{'path': instance, 'seed': seed, 'sol': sign * opt_sols[instance]}
+        #                for instance in instances for seed in range(config['num_seeds'])]
 
         timestamp = time.strftime('%Y-%m-%d--%H.%M.%S')
         experiment_dir = f'experiments/{args.problem}/05_evaluate'
@@ -276,7 +282,9 @@ if __name__ == "__main__":
 
         for nodesel in nodesels:
             for static in [True, False]:
-                experiment_id = f'{instance_type}_{"static" if static else "active"}_{nodesel}'
+                env = "static" if static else "active"
+                experiment_id = f"{instance_type}_{env}_{nodesel}"
+                utilities.log(f"Starting experiment {experiment_id}")
                 result_file = os.path.join(running_dir, f'{experiment_id}_results.csv')
                 stats = collect_evaluation(instances, args.seed, args.njobs, nodesel, static, result_file)
                 results[experiment_id] = stats
