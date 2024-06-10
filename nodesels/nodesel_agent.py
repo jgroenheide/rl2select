@@ -6,21 +6,21 @@ from nodesels.nodesel_policy import NodeselPolicy
 
 
 class NodeselAgent(NodeselPolicy):
-    def __init__(self, instance, opt_sol, random, greedy, static, sample_rate, requests_queue):
+    def __init__(self, instance, opt_sol, metric, greedy, random, sample_rate, requests_queue):
         super().__init__()
         # self.model = model
-        self.receiver_queue = queue.Queue()
-        self.requests_queue = requests_queue
-
         self.instance = instance
         self.opt_sol = opt_sol
-        self.random = random
         self.greedy = greedy
-        self.static = static
+        self.random = random
+        self.metric = metric
 
         self.sample_rate = sample_rate
         self.tree_recorder = TreeRecorder() if sample_rate > 0 else None
         self.transitions = []
+
+        self.receiver_queue = queue.Queue()
+        self.requests_queue = requests_queue
 
         self.penalty = 0
         self.GUB = None
@@ -37,13 +37,6 @@ class NodeselAgent(NodeselPolicy):
     def nodeinit(self, *args, **kwargs):
         self.GUB = self.model.getUpperbound()
         self.gap = self.GUB - self.opt_sol
-
-    # def nodeselect(self):
-    #     GUB = self.model.getUpperbound()
-    #     if self.model.isEQ(GUB, self.opt_sol):
-    #         print("solution reached")
-    #         self.model.interruptSolve()
-    #     return super().nodeselect()
 
     def nodecomp(self, node1, node2):
         if node1.getParent() != node2.getParent(): return 0
@@ -64,12 +57,13 @@ class NodeselAgent(NodeselPolicy):
         # self.GUB = GUB
         # self.gamma *= 0.99
 
-        # self.penalty = self.model.getNNodes()  # For global tree size
-
-        # For optimality-bound penalty
-        lower_bound = self.model.getCurrentNode().getLowerbound()
-        self.penalty += self.model.isGT(lower_bound, self.opt_sol)
-        # reward = -self.model.isGT(lower_bound, self.opt_sol)
+        if self.metric == "nnodes":  # For global tree size
+            self.penalty = self.model.getNNodes()
+        elif self.metric == "lb/obj":  # For optimality-bound penalty
+            lower_bound = self.model.getCurrentNode().getLowerbound()
+            self.penalty += self.model.isGT(lower_bound, self.opt_sol)
+            # reward = -self.model.isGT(lower_bound, self.opt_sol)
+            # print(f"lb: {lower_bound} | opt_sol: {self.opt_sol} | reward: {reward}")
 
         # collect transition samples if requested
         if self.sample_rate > 0:
@@ -90,9 +84,13 @@ class NodeselAgent(NodeselPolicy):
             'time': self.model.getSolvingTime()
         })
 
+        if (self.model.isGT(node1.getLowerbound(), self.opt_sol) and
+                self.model.isGT(node2.getLowerbound(), self.opt_sol)):
+            self.penalty -= 1
+
         self.iter_count += 1
         # avoid too large trees for stability
-        if self.iter_count > 50000:
+        if self.iter_count > 25000:
             self.model.interruptSolve()
 
         return 1 if action > 0.5 else -1

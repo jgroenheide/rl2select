@@ -119,9 +119,9 @@ def generate_instances(orders_queue, problem, random, transfer=False):
             episode += 1
 
     elif problem == "cflp":
-        n_facilities = 35
-        ratio = 5
-        n_customers = 60 if transfer else 35
+        n_facilities = 25  # original: 35
+        ratio = 3  # original: 5
+        n_customers = 60 if transfer else 25  # original: 35
         tmp_dir = out_dir + f'/tmp_{n_customers}_{n_facilities}_{ratio}'
         os.makedirs(tmp_dir, exist_ok=True)
 
@@ -344,10 +344,10 @@ if __name__ == '__main__':
         type=int,
     )
     args = parser.parse_args()
-    config['num_instances'] = [("train", 20),
-                               ("valid", 10),
-                               ("test", 1),
-                               ("transfer", 1)]
+    # config['num_instances'] = [("train", 20),
+    #                            ("valid", 10),
+    #                            ("test", 1),
+    #                            ("transfer", 1)]
 
     rng = np.random.default_rng(args.seed)
     if os.path.exists(f'data/{args.problem}/instances'):

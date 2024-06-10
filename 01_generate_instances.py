@@ -370,10 +370,7 @@ def generate_capacitated_facility_location(n_customers, n_facilities, ratio, fil
 
         file.write("\n\nsubject to\n")
         for i in range(n_customers):
-            file.write(f"demand_{i + 1}: " +
-                       " + ".join([f"x_{i + 1}_{j + 1}"
-                                   for j in range(n_facilities)])
-                       + f" => 1\n")
+            file.write(f"demand_{i + 1}: " + " + ".join([f"x_{i + 1}_{j + 1}" for j in range(n_facilities)]) + f" => 1\n")
         for j in range(n_facilities):
             file.write(f"capacity_{j + 1}: " +
                        " + ".join([f"{demands[i]}x_{i + 1}_{j + 1}"
@@ -775,10 +772,10 @@ if __name__ == '__main__':
                 generate_mknapsack(n_items, n_knapsacks, filename, rng)
 
     elif args.problem == "cflp":
-        n_facilities = 35
-        ratio = 5
+        n_facilities = 25  # original: 35
+        ratio = 2  # original: 5
         for instance_type, num_instances in config['num_instances']:
-            n_customers = 60 if instance_type == "transfer" else 35
+            n_customers = 60 if instance_type == "transfer" else 25  # original: 35
             out_dir = instance_dir + f'/{instance_type}_{n_customers}_{n_facilities}_{ratio}'
             os.makedirs(out_dir); print(f"{num_instances} instances in {out_dir}")
             for i in trange(num_instances):

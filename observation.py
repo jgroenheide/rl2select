@@ -188,15 +188,15 @@ def branching_features(model, node, buffer=None):
 def node_features(model, node, buffer=None):
     assert sum(node.getNDomchg()) <= 1
     return {
-        # 'type_child': node.getType() == 3,  # always true for smartDFS
-        # 'type_sibling': node.getType() == 2,
-        # 'type_leaf': node.getType() == 4,
+        'type_child': node.getType() == 3,  # always true for smartDFS
+        'type_sibling': node.getType() == 2,
+        'type_leaf': node.getType() == 4,
         'estimate': node.getEstimate(),
         'node_lb': node.getLowerbound(),
         'relative_bound': None,
         'is_prio_child': node == model.getPrioChild(),
         'node_depth': node.getDepth() / (model.getMaxDepth() + 1),
-        'influence': sum(node.getNDomchg()),
+        # 'influence': sum(node.getNDomchg()),
     }
 
 
@@ -217,7 +217,7 @@ def global_features(model, buffer=None):
         'global_lb': global_lb,
         'global_ub': global_ub,
         'bound_gap': bound_gap,
-        'ub_is_infinite': ub_is_infinite,  # always False
-        'gap_is_infinite': gap_is_infinite,
+        # 'ub_is_infinite': ub_is_infinite,  # always False
+        # 'gap_is_infinite': gap_is_infinite,
         'plunge_depth': plunge_depth,
     }

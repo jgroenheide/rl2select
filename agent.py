@@ -159,9 +159,9 @@ class Agent(threading.Thread):
             rng = np.random.default_rng(instance['seed'])
             nodesel_agent = NodeselAgent(instance=instance['path'],
                                          opt_sol=instance['sol'],
-                                         random=rng,
+                                         metric="lb/obj",
                                          greedy=task['greedy'],
-                                         static=task['static'],
+                                         random=rng,
                                          sample_rate=sample_rate,
                                          requests_queue=self.requests_queue)
 
