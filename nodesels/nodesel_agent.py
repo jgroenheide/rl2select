@@ -1,19 +1,20 @@
 import queue
 import extract
+import numpy as np
 import torch as th
 
 from nodesels.nodesel_policy import NodeselPolicy
 
 
 class NodeselAgent(NodeselPolicy):
-    def __init__(self, instance, opt_sol, metric, greedy, random, sample_rate, requests_queue):
+    def __init__(self, instance, opt_sol, seed, greedy, metric, sample_rate, requests_queue):
         super().__init__()
         # self.model = model
         self.instance = instance
         self.opt_sol = opt_sol
-        self.greedy = greedy
-        self.random = random
         self.metric = metric
+        self.greedy = greedy
+        self.random = np.random.default_rng(seed)
 
         self.sample_rate = sample_rate
         self.tree_recorder = TreeRecorder() if sample_rate > 0 else None

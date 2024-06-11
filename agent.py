@@ -122,12 +122,12 @@ class Agent(threading.Thread):
     Agent class. Receives tasks from the job sponsor, runs them and samples transitions if requested.
     """
 
-    def __init__(self, name, time_limit, jobs_queue, requests_queue, mode):
+    def __init__(self, name, time_limit, jobs_queue, requests_queue, metric="lb/obj"):
         super().__init__(name=name)
         self.time_limit = time_limit
         self.jobs_queue = jobs_queue
         self.requests_queue = requests_queue
-        self.mode = mode
+        self.metric = metric
 
     def run(self):
         while True:
@@ -156,12 +156,11 @@ class Agent(threading.Thread):
             utilities.init_scip_params(m, instance['seed'], task['static'])
             m.setRealParam('limits/objectivestop', abs(instance['sol']))
 
-            rng = np.random.default_rng(instance['seed'])
             nodesel_agent = NodeselAgent(instance=instance['path'],
                                          opt_sol=instance['sol'],
-                                         metric="lb/obj",
+                                         seed=instance['seed'],
                                          greedy=task['greedy'],
-                                         random=rng,
+                                         metric=self.metric,
                                          sample_rate=sample_rate,
                                          requests_queue=self.requests_queue)
 
@@ -183,12 +182,12 @@ class Agent(threading.Thread):
 
             # post-process the collected samples (credit assignment)
             if sample_rate > 0:
-                if self.mode in ['tmdp+ObjLim', 'tmdp+DFS']:
+                if self.metric in ['tmdp+ObjLim', 'tmdp+DFS']:
                     subtree_sizes = nodesel_agent.tree_recorder.calculate_subtree_sizes()
                     for transition in nodesel_agent.transitions:
                         transition['returns'] = -subtree_sizes[transition['node_id']] - 1
                 else:
-                    assert self.mode == 'mdp'
+                    assert self.metric == 'mdp'
                     total_penalty = nodesel_agent.penalty
                     for transition in nodesel_agent.transitions:
                         # negative return equals penalty before action - total penalty

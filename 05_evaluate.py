@@ -37,9 +37,9 @@ class NodeselBFS(scip.Nodesel):
 
 
 class NodeselRandom(NodeselPolicy):
-    def __init__(self):
+    def __init__(self, seed):
         super().__init__(name="Random")
-        self.random = np.random.default_rng(args.seed)
+        self.random = np.random.default_rng(seed)
 
     def nodecomp(self, node1, node2):
         return -1 if self.random.random() < 0.5 else 1
@@ -58,7 +58,7 @@ def evaluate(in_queue, out_queue, nodesel, static):
     while not in_queue.empty():
         num_nodes = []
         solvetime = []
-        instance, base_seed = in_queue.get()
+        instance, base_seed, opt_sol = in_queue.get()
         instance_name = os.path.basename(instance)
         for seed in range(base_seed, base_seed + 5):
             th.manual_seed(seed)
@@ -72,7 +72,7 @@ def evaluate(in_queue, out_queue, nodesel, static):
             m.setIntParam('timing/clocktype', 1)
             m.setRealParam('limits/time', 90)
             utilities.init_scip_params(m, seed, static)
-            m.setRealParam('limits/objectivestop', instance['sol'])
+            m.setRealParam('limits/objectivestop', opt_sol)
 
             if nodesel is not None:
                 m.includeNodesel(nodesel=nodesel,
@@ -109,14 +109,14 @@ def evaluate(in_queue, out_queue, nodesel, static):
             m.freeProb()
 
         out_queue.put({
-            'type': "mean",
+            'type': "stats",
             'instance': instance_name,
             'nnodes': np.mean(num_nodes),
             'solve_time': np.mean(solvetime),
         })
 
 
-def collect_evaluation(instances, seed, n_jobs, nodesel, static, result_file):
+def collect_evaluation(instances, opt_sols, seed, n_jobs, nodesel, static, result_file):
     """
     Runs branch-and-bound episodes on the given set of instances
     with the provided node selector and settings.
@@ -125,15 +125,23 @@ def collect_evaluation(instances, seed, n_jobs, nodesel, static, result_file):
     ----------
     instances : list
         Instances to process
+    opt_sols : dict
+        Optimal solution values for all instances
+    seed : int
+        Base seed for all evaluations
     n_jobs : int
         Number of jobs for parallel sampling.
     nodesel : object
         Nodesel for which to evaluate
+    static : bool
+        Environment type to evaluate in
+    result_file : str
+        File to output results to
     """
     in_queue = mp.Queue()
     out_queue = mp.Queue()
     for instance in instances:
-        in_queue.put([instance, seed])
+        in_queue.put([instance, seed, opt_sols[instance]])
 
     workers = []
     for i in range(n_jobs):
@@ -169,7 +177,7 @@ def collect_evaluation(instances, seed, n_jobs, nodesel, static, result_file):
                 del answer['type']
                 writer.writerow(answer)
                 csvfile.flush()
-            else:  # answer['type'] == "mean"
+            else:  # answer['type'] == "stats"
                 nnodes.append(answer['nnodes'])
                 stimes.append(answer['solve_time'])
 
@@ -225,12 +233,12 @@ if __name__ == "__main__":
 
     # Default: BestEstimate, BFS, Random, Untrained Policy
     model = ml.MLPPolicy().to(device)
-    nodesels = [None, NodeselBFS(), NodeselRandom(),
+    nodesels = [None, NodeselBFS(), NodeselRandom(args.seed),
                 NodeselPolicy(model, device, "policy")]
-    nodesels = []
+    # nodesels = []
 
     # Learned models
-    for model_id in ["il", "rl_mdp_"]:
+    for model_id in ["il", "rl_mdp", "il_k=1_Nodes"]:
         model_path = f'actor/{args.problem}/{model_id}.pkl'
         if os.path.exists(model_path):
             model = ml.MLPPolicy().to(device)
@@ -266,14 +274,11 @@ if __name__ == "__main__":
     for instance_type in ["test", "transfer"]:
         instance_dir = f'data/{args.problem}/instances'
         difficulty = transfer_difficulty if instance_type == "transfer" else config['difficulty'][args.problem]
-        instances = [str(file) for file in glob.glob(instance_dir + f'/{instance_type}_{difficulty}/*.lp')]
+        instances = [str(file).replace('\\', '/') for file in
+                     glob.glob(instance_dir + f'/{instance_type}_{difficulty}/*.lp')]
 
-        # with open(instance_dir + f'/obj_values.json') as f:
-        #     opt_sols = json.load(f)
-        #
-        # sign = 1 if args.problem in ["cflp"] else -1
-        # valid_batch = [{'path': instance, 'seed': seed, 'sol': sign * opt_sols[instance]}
-        #                for instance in instances for seed in range(config['num_seeds'])]
+        with open(instance_dir + f'/obj_values.json') as f:
+            opt_sols = json.load(f)
 
         timestamp = time.strftime('%Y-%m-%d--%H.%M.%S')
         experiment_dir = f'experiments/{args.problem}/05_evaluate'
@@ -286,6 +291,6 @@ if __name__ == "__main__":
                 experiment_id = f"{instance_type}_{env}_{nodesel}"
                 utilities.log(f"Starting experiment {experiment_id}")
                 result_file = os.path.join(running_dir, f'{experiment_id}_results.csv')
-                stats = collect_evaluation(instances, args.seed, args.njobs, nodesel, static, result_file)
+                stats = collect_evaluation(instances, opt_sols, args.seed, args.njobs, nodesel, static, result_file)
                 results[experiment_id] = stats
     print(results)

@@ -1,6 +1,6 @@
 # * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * #
 # Train agent using the reinforcement learning method. User must provide a      #
-# mode in {mdp, tmdp+DFS, tmdp+ObjLim}. The training parameters are read from   #
+# metric in {mdp, tmdp+DFS, tmdp+ObjLim}. The training parameters are read from   #
 # config.json which is overridden by command line inputs, if provided.          #
 # Usage: python 04_train_rl.py <type> -s <seed> -g <cudaId>                     #
 # * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * #
@@ -34,13 +34,13 @@ if __name__ == '__main__':
         choices=config['problems'],
     )
     parser.add_argument(
-        'mode',
-        help='Training mode.',
-        choices=["mdp", "tmdp+DFS", "tmdp+ObjLim"],
+        'metric',
+        help='Training metric.',
+        choices=["nnodes", "lb/obj", "gub+"],
     )
     # parser.add_argument(
     #     'static',
-    #     help='Training mode',
+    #     help='Training metric',
     #     type=bool
     # )
     parser.add_argument(
@@ -83,15 +83,6 @@ if __name__ == '__main__':
     valid_files = [str(file).replace('\\', '/') for file in
                    glob.glob(instance_dir + f'/valid_{difficulty}/*.lp')[:config['num_valid_instances']]]
 
-    # if not os.path.exists(instance_dir + f'/obj_values.json'):
-    #     print("obj_values.json not found. Creating from instance_solutions")
-    #     obj_values = {}
-    #     with open(instance_dir + f'/train_{difficulty}/instance_solutions.json') as f:
-    #         obj_values.update(json.load(f))
-    #     with open(instance_dir + f'/valid_{difficulty}/instance_solutions.json') as f:
-    #         obj_values.update(json.load(f))
-    #     with open(instance_dir + f'/obj_values.json', 'w') as f:
-    #         json.dump(obj_values, f)
     with open(instance_dir + f'/obj_values.json') as f:
         opt_sols = json.load(f)
 
@@ -118,7 +109,7 @@ if __name__ == '__main__':
     running_dir = experiment_dir + f'/{args.seed}_{timestamp}'
     os.makedirs(running_dir, exist_ok=True)
     logfile = running_dir + '/rl_train_log.txt'
-    paramfile = running_dir + f'/best_params_rl-{args.mode}.pkl'
+    paramfile = running_dir + f'/best_params_rl-{args.metric}.pkl'
     wb.init(project="rl2select", config=config)
 
     static = True

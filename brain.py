@@ -52,8 +52,6 @@ class Brain:
             # REINFORCE
             log_probs = dist.log_prob(batch['action'])
             reinforce_loss = - (batch['returns'] * log_probs).sum()
-            # loss = - (-10 * -1) = -10
-            # loss = - (-20 * -1) = -20
             reinforce_loss /= n_samples
             loss += reinforce_loss
 

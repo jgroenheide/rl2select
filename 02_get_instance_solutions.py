@@ -49,10 +49,10 @@ def solve_instance(in_queue, out_queue, k_sols):
         m.optimize()
 
         # Statistics to help tune new problems
-        # print(f"Status: {m.getStatus()}")
-        # print(f"NNodes: {m.getNNodes()}")
-        # print(f"NSols: {m.getNBestSolsFound()}")
-        # print(f"MaxDepth: {m.getMaxDepth()}")
+        print(f"Status: {m.getStatus()}")
+        print(f"NNodes: {m.getNNodes()}")
+        print(f"NSols: {m.getNBestSolsFound()}")
+        print(f"MaxDepth: {m.getMaxDepth()}")
 
         if m.getStatus() == "optimal" and 100 < m.getNNodes() < 1000:
             # retrieve and save solutions to individual files
@@ -278,6 +278,7 @@ def collector(problem, config, n_jobs, k_sols, random):
                 daemon=True)
             dispatcher.start()
 
+        tmp_dir = None
         for i in trange(num_instances):
             instance = out_queue.get()
             old_filename = instance['filename']
@@ -293,10 +294,11 @@ def collector(problem, config, n_jobs, k_sols, random):
                     os.rename(f'{old_filename[:-3]}-{j + 1}.sol',
                               f'{new_filename[:-3]}-{j + 1}.sol')
                 nnodes.append(instance['nnodes'])
-            else:  # instance_type in ["test", "transfer"]
-                tmp_dirs.append(tmp_dir)
 
             obj_values[new_filename] = instance['opt_sol']
+
+        if instance_type in ["test", "transfer"]:
+            tmp_dirs.append(tmp_dir)
 
     # secure objective values as soon as possible to avoid losing data
     with open(f'data/{problem}/instances/obj_values.json', "w") as f:
@@ -344,10 +346,10 @@ if __name__ == '__main__':
         type=int,
     )
     args = parser.parse_args()
-    # config['num_instances'] = [("train", 20),
-    #                            ("valid", 10),
-    #                            ("test", 1),
-    #                            ("transfer", 1)]
+    config['num_instances'] = [("train", 20),
+                               ("valid", 10),
+                               ("test", 1),
+                               ("transfer", 1)]
 
     rng = np.random.default_rng(args.seed)
     if os.path.exists(f'data/{args.problem}/instances'):
