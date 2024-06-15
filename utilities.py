@@ -55,8 +55,9 @@ def init_scip_params(model, seed, static=False,
         model.setHeuristics(scip.SCIP_PARAMSETTING.OFF)
         model.setSeparating(scip.SCIP_PARAMSETTING.OFF)
         model.setBoolParam('conflict/enable', False)
-        # most infeasible branching is the best static rule
-        model.setIntParam('branching/mostinf/priority', 20000)
+        # Most infeasible branching is the best static rule.
+        # Note: static branching does not improve behaviour.
+        # model.setIntParam('branching/mostinf/priority', 20000)
 
     # set up randomization
     model.setBoolParam('randomization/permutevars', True)

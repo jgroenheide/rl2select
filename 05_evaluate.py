@@ -265,7 +265,7 @@ if __name__ == "__main__":
         'indset': "1000_4",
         'gisp': "80_0.5",
         'mkp': "100_8",
-        'cflp': "60_35_5",
+        'cflp': "60_25_3",
         'fcmcnf': "30_45_100",
         'setcover': "500_1000_0.05",
         'cauctions': "200_1000"
@@ -287,6 +287,7 @@ if __name__ == "__main__":
 
         for nodesel in nodesels:
             for static in [True, False]:
+                if instance_type == "test" and not static: continue
                 env = "static" if static else "active"
                 experiment_id = f"{instance_type}_{env}_{nodesel}"
                 utilities.log(f"Starting experiment {experiment_id}")
