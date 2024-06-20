@@ -36,7 +36,7 @@ if __name__ == '__main__':
     parser.add_argument(
         'metric',
         help='Training metric.',
-        choices=["nnodes", "lb/obj", "gub+"],
+        choices=["nnodes", "lb-obj", "gub+"],
     )
     # parser.add_argument(
     #     'static',
@@ -112,7 +112,7 @@ if __name__ == '__main__':
     paramfile = running_dir + f'/best_params_rl-{args.metric}.pkl'
     wb.init(project="rl2select", config=config)
 
-    static = True
+    static = False
 
     log(f"training instances: {len(train_files)}", logfile)
     log(f"validation instances: {len(valid_batch)}", logfile)
@@ -124,7 +124,7 @@ if __name__ == '__main__':
     log(f"seed {args.seed}", logfile)
 
     brain = Brain(config, device)
-    agent_pool = AgentPool(brain, config['num_agents'], config['time_limit'], args.mode)
+    agent_pool = AgentPool(brain, config['num_agents'], config['time_limit'], args.metric)
     agent_pool.start()
 
     # Already start jobs  [CREATE]
@@ -150,7 +150,6 @@ if __name__ == '__main__':
             t_access.set()  # Give the training agents access to the policy!
             log(f"  {len(train_batch)} training jobs running (preempted)", logfile)
             # do not do anything with the samples or stats yet, we have to wait for the jobs to finish!
-            # t_queue.join()  # force all training jobs to finish for debugging reasons
         else:
             log(f"  training skipped", logfile)
         # VALIDATION #
@@ -159,7 +158,6 @@ if __name__ == '__main__':
             v_access.set()  # Give the validation agents access to the policy!
             log(f"  {len(valid_batch)} validation jobs running (preempted)", logfile)
             # do not do anything with the stats yet, we have to wait for the jobs to finish!
-            # v_queue.join()  # force all validation jobs to finish for debugging reasons
         else:
             log(f"  validation skipped", logfile)
 
@@ -174,7 +172,7 @@ if __name__ == '__main__':
             if ((epoch + 1) % valid_freq == 0) or ((epoch + 1) == config['num_epochs']):
                 v_next = agent_pool.start_job(valid_batch, 0.0, static, greedy=True)
 
-        # Validate the finished jobs [EVALUATE]
+        # Evaluate the finished jobs [EVALUATE]
         # TRAINING #
         if epoch < config['num_epochs']:
             t_queue.join()  # wait for all training episodes to be processed
@@ -224,11 +222,12 @@ if __name__ == '__main__':
 
         # If time limit is hit, stop process
         elapsed_time = time.time() - start_time
-        if int(elapsed_time / 86400) >= 6: break
+        if int(elapsed_time / 86400) >= 3: break
 
     log(f"Done. Elapsed time: {elapsed_time}", logfile)
     os.makedirs(f'actor/{args.problem}', exist_ok=True)
-    shutil.copy(paramfile, f'actor/{args.problem}/rl_{args.mode}_active.pkl')
+    env = "static" if static else "active"
+    shutil.copy(paramfile, f'actor/{args.problem}/rl_{args.metric}_{env}.pkl')
 
     v_access.set()
     t_access.set()

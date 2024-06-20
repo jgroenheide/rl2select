@@ -21,7 +21,7 @@ import multiprocessing as mp
 
 from tqdm import trange
 from nodesels.nodesel_policy import NodeselPolicy
-from scipy.stats import gmean
+from scipy.stats import gmean, gstd
 
 
 class NodeselBFS(scip.Nodesel):
@@ -185,9 +185,9 @@ def collect_evaluation(instances, opt_sols, seed, n_jobs, nodesel, static, resul
         p.join()
 
     return {'nnodes_g': gmean(nnodes),
-            'nnodes_std': np.std(nnodes),
+            'nnodes_std': gstd(nnodes),
             'stimes_g': gmean(stimes),
-            'stimes_std': np.std(stimes),
+            'stimes_std': gstd(stimes),
             }
 
 
@@ -294,4 +294,5 @@ if __name__ == "__main__":
                 result_file = os.path.join(running_dir, f'{experiment_id}_results.csv')
                 stats = collect_evaluation(instances, opt_sols, args.seed, args.njobs, nodesel, static, result_file)
                 results[experiment_id] = stats
+                print(stats)
     print(results)

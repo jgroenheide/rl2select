@@ -53,24 +53,24 @@ class NodeselAgent(NodeselPolicy):
         action = self.receiver_queue.get()  # LEFT:0, RIGHT:1
         reward = 0
 
-        # GUB = self.model.getUpperbound()
-        # reward = self.gamma * (self.GUB - GUB) / self.gap  # For primal bound improvement
-        # self.GUB = GUB
-        # self.gamma *= 0.99
-
         if self.metric == "nnodes":  # For global tree size
             self.penalty = self.model.getNNodes()
-        elif self.metric == "lb/obj":  # For optimality-bound penalty
+        elif self.metric == "lb-obj":  # For optimality-bound penalty
             lower_bound = self.model.getCurrentNode().getLowerbound()
             self.penalty += self.model.isGT(lower_bound, self.opt_sol)
-            # reward = -self.model.isGT(lower_bound, self.opt_sol)
+            reward = -self.model.isGT(lower_bound, self.opt_sol)
             # print(f"lb: {lower_bound} | opt_sol: {self.opt_sol} | reward: {reward}")
+        elif self.metric == "gub+":
+            GUB = self.model.getUpperbound()
+            reward = self.gamma * (self.GUB - GUB) / self.gap  # For primal bound improvement
+            self.gamma *= 0.997
+            self.GUB = GUB
 
         # collect transition samples if requested
         if self.sample_rate > 0:
             focus_node = self.model.getCurrentNode()
             self.tree_recorder.record_decision(focus_node)
-            if self.random.random() < self.sample_rate:
+            if self.random.random() < self.sample_rate or reward != 0:
                 node_number = focus_node.getNumber()
                 self.transitions.append({'state': state,
                                          'action': action,

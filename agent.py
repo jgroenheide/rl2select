@@ -182,16 +182,17 @@ class Agent(threading.Thread):
 
             # post-process the collected samples (credit assignment)
             if sample_rate > 0:
-                if self.metric in ['tmdp+ObjLim', 'tmdp+DFS']:
-                    subtree_sizes = nodesel_agent.tree_recorder.calculate_subtree_sizes()
-                    for transition in nodesel_agent.transitions:
-                        transition['returns'] = -subtree_sizes[transition['node_id']] - 1
-                else:
-                    assert self.metric == 'mdp'
+                if self.metric in ["nnodes"]:  # , "lb-obj"
                     total_penalty = nodesel_agent.penalty
                     for transition in nodesel_agent.transitions:
                         # negative return equals penalty before action - total penalty
                         transition['returns'] = transition['penalty'] - total_penalty
+                else:  # self.metric = "gub+"
+                    for transition in nodesel_agent.transitions:
+                        transition['returns'] = transition['reward']
+                    # subtree_sizes = nodesel_agent.tree_recorder.calculate_subtree_sizes()
+                    # for transition in nodesel_agent.transitions:
+                    #     transition['returns'] = -subtree_sizes[transition['node_id']] - 1
 
             # record episode samples and stats
             task['samples'].extend(nodesel_agent.transitions)

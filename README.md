@@ -161,7 +161,34 @@ IL:
 RL:
 - Problem: [GISP, CFLP]
 
-Fixing the sampling code:
- - Either: Find out why PySCIPopt is crashing, fix the issue, then run the code as normal, or
-           Make the sampler resistant to crashing. When a sub-process crashes, start a new one.
- - 
+Turning STD into G_STD
+- Read the data
+- Aggregate per instance
+- Retrieve G_STD per experiment
+
+```python
+import csv
+
+experiment_dir = f'experiments/{args.problem}/05_evaluate'
+result_files = glob.glob(experiment_dir + f'/{dir}/*.csv')
+for result_file in result_files:
+    with open(result_file, newline='') as csvfile:
+        reader = csv.DictReader(csv_file, fieldnames=fieldnames)
+        
+        current_instance = None
+        mean_nnodes = []
+        mean_stimes = []
+        nnodes = []
+        stimes = []
+        for row in reader:
+            if current_instance is None:
+                current_instance = row['instance']
+            if row['instance'] != current_instance:
+                mean_nnodes.append(np.mean(nnodes))
+                mean_stimes.append(np.mean(stimes))
+                current_instance = row['instance']
+                nnodes = []
+                stimes = []
+            stimes.append(row['stime'])
+        print(gstd(mean_stimes))
+```
