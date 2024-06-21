@@ -53,6 +53,6 @@ if __name__ == '__main__':
                 stimes.append(float(row['stime']))
             mean_nnodes.append(np.mean(nnodes))
             mean_stimes.append(np.mean(stimes))
-            print(f"result_file: {result_file}"
+            print(f"result_file: {result_file} "
                   f"| nnodes: {gstd(mean_nnodes)}"
                   f"| stimes: {gstd(mean_stimes)}")
