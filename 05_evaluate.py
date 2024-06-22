@@ -287,12 +287,12 @@ if __name__ == "__main__":
 
         for nodesel in nodesels:
             for static in [True, False]:
-                if instance_type == "test" and not static: continue
-                env = "static" if static else "active"
-                experiment_id = f"{instance_type}_{env}_{nodesel}"
-                utilities.log(f"Starting experiment {experiment_id}")
-                result_file = os.path.join(running_dir, f'{experiment_id}_results.csv')
-                stats = collect_evaluation(instances, opt_sols, args.seed, args.njobs, nodesel, static, result_file)
-                results[experiment_id] = stats
-                print(stats)
+                if instance_type == "test" and not static:
+                    env = "static" if static else "active"
+                    experiment_id = f"{instance_type}_{env}_{nodesel}"
+                    utilities.log(f"Starting experiment {experiment_id}")
+                    result_file = os.path.join(running_dir, f'{experiment_id}_results.csv')
+                    stats = collect_evaluation(instances, opt_sols, args.seed, args.njobs, nodesel, static, result_file)
+                    results[experiment_id] = stats
+                    print(stats)
     print(results)
