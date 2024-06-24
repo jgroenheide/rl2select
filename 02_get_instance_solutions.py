@@ -212,27 +212,36 @@ def collect_solutions(problem, config, n_jobs, k_sols, random):
 
     instances = []
     difficulty = config['difficulty'][problem]
-    for instance_type in ["train", "valid"]:
+    transfer_difficulty = {
+        'indset': "1000_4",
+        'gisp': "80_0.5",
+        'mkp': "100_8",
+        'cflp': "60_25_3",
+        'fcmcnf': "30_45_100",
+        'setcover': "500_1000_0.05",
+        'cauctions': "200_1000"
+    }[problem]
+    for instance_type, _ in config['num_instances']:
+        if instance_type == "transfer": difficulty = transfer_difficulty
         instance_dir = f'data/{problem}/instances/{instance_type}_{difficulty}'
-        instances += glob.glob(instance_dir + '/*.lp')
 
-    for instance in instances:
-        in_queue.put([instance, random.integers(2**31)])
-    print(f"{len(instances)} instances on queue.")
+        for instance in glob.glob(instance_dir + f'/*.lp'):
+            in_queue.put([instance, random.integers(2**31)])
+        print(f"{len(instances)} {instance_type} instances on queue.")
 
     in_queue.join()
     obj_values = {}
     while not out_queue.empty():
         instance = out_queue.get()
-        filename = instance['filename']
-        opt_sol = instance['opt_sol']
-        obj_values[filename] = opt_sol
+        obj_values[instance['filename']] = instance['opt_sol']
+
+    # remove when switching to individual files
+    instance_dir = f'data/{problem}/instances'
+    with open(instance_dir + '/obj_values_.json', "w") as f:
+        json.dump(obj_values, f)
 
     for p in workers:
         p.terminate()
-
-    with open(f'data/{problem}/instances/obj_values.json', "w") as f:
-        json.dump(obj_values, f)
 
 
 def collector(problem, config, n_jobs, k_sols, random):
