@@ -238,7 +238,7 @@ if __name__ == "__main__":
     # nodesels = []
 
     # Learned models
-    for model_id in ["il_k=10_Children", "rl_mdp", "il_k=1_Nodes"]:
+    for model_id in ["il_k=10_Children", "rl_mdp"]:  # , "il_k=1_Nodes"
         model_path = f'actor/{args.problem}/{model_id}.pkl'
         if os.path.exists(model_path):
             model = ml.MLPPolicy().to(device)
