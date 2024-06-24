@@ -235,7 +235,7 @@ if __name__ == "__main__":
     model = ml.MLPPolicy().to(device)
     nodesels = [None, NodeselBFS(), NodeselRandom(args.seed),
                 NodeselPolicy(model, device, "policy")]
-    nodesels = []
+    # nodesels = []
 
     # Learned models
     for model_id in ["il_k=10_Children", "rl_mdp", "il_k=1_Nodes"]:
@@ -287,12 +287,11 @@ if __name__ == "__main__":
 
         for nodesel in nodesels:
             for static in [True, False]:
-                if instance_type == "test" and not static:
-                    env = "static" if static else "active"
-                    experiment_id = f"{instance_type}_{env}_{nodesel}"
-                    utilities.log(f"Starting experiment {experiment_id}")
-                    result_file = os.path.join(running_dir, f'{experiment_id}_results.csv')
-                    stats = collect_evaluation(instances, opt_sols, args.seed, args.njobs, nodesel, static, result_file)
-                    results[experiment_id] = stats
-                    print(stats)
+                env = "static" if static else "active"
+                experiment_id = f"{instance_type}_{env}_{nodesel}"
+                utilities.log(f"Starting experiment {experiment_id}")
+                result_file = os.path.join(running_dir, f'{experiment_id}_results.csv')
+                stats = collect_evaluation(instances, opt_sols, args.seed, args.njobs, nodesel, static, result_file)
+                results[experiment_id] = stats
+                print(stats)
     print(results)

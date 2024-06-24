@@ -177,6 +177,7 @@ if __name__ == "__main__":
     log(f"learning rate: {config['lr_train_il']}", logfile)
     log(f"model size: {sum(p.numel() for p in model.parameters())}", logfile)
     log(f"problem: {args.problem}", logfile)
+    log(f"difficulty: {difficulty}", logfile)
     log(f"seed {args.seed}", logfile)
     log(f"gpu: {args.gpu}", logfile)
 

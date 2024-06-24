@@ -41,6 +41,7 @@ if __name__ == '__main__':
     # parser.add_argument(
     #     'static',
     #     help='Training metric',
+    #     default=False,
     #     type=bool
     # )
     parser.add_argument(
@@ -81,7 +82,8 @@ if __name__ == '__main__':
     train_files = [str(file).replace('\\', '/') for file in
                    glob.glob(instance_dir + f'/train_{difficulty}/*.lp')]
     valid_files = [str(file).replace('\\', '/') for file in
-                   glob.glob(instance_dir + f'/valid_{difficulty}/*.lp')[:config['num_valid_instances']]]
+                   rng.choice(glob.glob(instance_dir + f'/valid_{difficulty}/*.lp'),
+                              size=config['num_valid_instances'], replace=False)]
 
     with open(instance_dir + f'/obj_values.json') as f:
         opt_sols = json.load(f)
@@ -95,7 +97,7 @@ if __name__ == '__main__':
     def train_batch_generator():
         while True:
             yield [{'path': instance, 'seed': rng.integers(0, 2 ** 31), 'sol': sign * opt_sols[instance]}
-                   for instance in rng.choice(train_files, size=config['episodes_per_epoch'], replace=True)]
+                   for instance in rng.choice(train_files, size=config['episodes_per_epoch'], replace=False)]
 
 
     batch_generator = train_batch_generator()
@@ -119,6 +121,7 @@ if __name__ == '__main__':
     log(f"max epochs: {config['num_epochs']}", logfile)
     log(f"learning rate: {config['lr_train_rl']}", logfile)
     log(f"problem: {args.problem}", logfile)
+    log(f"metric: {args.metric}", logfile)
     log(f"static: {static}", logfile)
     log(f"gpu: {args.gpu}", logfile)
     log(f"seed {args.seed}", logfile)
@@ -176,6 +179,7 @@ if __name__ == '__main__':
         # TRAINING #
         if epoch < config['num_epochs']:
             t_queue.join()  # wait for all training episodes to be processed
+            assert t_samples > 0  # crashes the program when I want it to...
             log("  training jobs finished", logfile)
             log(f"  {len(t_samples)} training samples collected", logfile)
             t_losses = brain.update(t_samples)
