@@ -203,9 +203,7 @@ if __name__ == '__main__':
             v_nnodess = [s['info']['nnodes'] for s in v_stats]
             v_lpiterss = [s['info']['lpiters'] for s in v_stats]
             v_times = [s['info']['time'] for s in v_stats]
-
-            assert np.all(np.array(v_nnodess) > 0)
-            tree_size = gmean(v_nnodess)
+            tree_size = gmean(np.array(v_nnodess) + 1) - 1
             wb.log({
                 'valid_nnodes_g': tree_size,
                 'valid_nnodes': np.mean(v_nnodess),
