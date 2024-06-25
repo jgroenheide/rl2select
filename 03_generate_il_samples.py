@@ -310,10 +310,9 @@ if __name__ == '__main__':
     sample_dir = f'data/{args.problem}/samples/k={args.ksols}_{args.sampling_type}'
 
     for instance_type in ["train", "valid"]:
-        instance_dir = f'data/{args.problem}/instances/{instance_type}_{difficulty}'
-        instances = glob.glob(instance_dir + f'/*.lp')
+        instances = glob.glob(f'data/{args.problem}/instances/{instance_type}_{difficulty}/*.lp')
         num_samples = args.ratio * len(instances)
         out_dir = sample_dir + f'/{instance_type}_{difficulty}'
-        os.makedirs(out_dir, exist_ok=True)  # create output directory, throws an error if it already exists
+        os.makedirs(out_dir, exist_ok=True)
         print(f"{len(instances)} {instance_type} instances for {num_samples} {args.sampling_type} samples")
         collect_samples(instances, out_dir, args.njobs, args.ksols, num_samples, args.sampling_type, rng)

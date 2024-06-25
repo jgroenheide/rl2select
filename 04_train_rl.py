@@ -98,7 +98,7 @@ if __name__ == '__main__':
 
     def train_batch_generator():
         while True:
-            yield [{'path': instance, 'seed': rng.integers(0, 2 ** 31), 'sol': sign * opt_sols[instance]}
+            yield [{'path': instance, 'seed': rng.integers(2 ** 31), 'sol': sign * opt_sols[instance]}
                    for instance in rng.choice(train_files, size=config['episodes_per_epoch'], replace=False)]
 
 

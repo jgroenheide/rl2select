@@ -160,6 +160,7 @@ def solve_instance(in_queue, out_queue, k_sols):
         m.optimize()
 
         # Statistics to help tune new problems
+        print(os.path.basename(instance))
         # print(f"Status: {m.getStatus()}")
         # print(f"NNodes: {m.getNNodes()}")
         # print(f"NSols: {m.getNBestSolsFound()}")
@@ -220,23 +221,27 @@ def collect_solutions(problem, config, n_jobs, k_sols, random):
         'setcover': "500_1000_0.05",
         'cauctions': "200_1000"
     }[problem]
-    for instance_type, _ in [("test", 0), ("transfer", 0)]:  # config['num_instances']:
+    for instance_type, num_instances in [("test", 50), ("transfer", 50)]:  # config['num_instances']:
         if instance_type == "transfer": difficulty = transfer_difficulty
         instance_dir = f'data/{problem}/instances/{instance_type}_{difficulty}'
 
         for instance in glob.glob(instance_dir + f'/*.lp'):
             in_queue.put([instance, random.integers(2**31)])
-        # print(f"{len(instances)} {instance_type} instances on queue.")
+        print(f"{num_instances} {instance_type} instances on queue.")
 
     in_queue.join()
     obj_values = {}
+    # remove when switching to individual files
+    instance_dir = f'data/{problem}/instances'
+    sol_dir = instance_dir + '/obj_values.json'
+    if os.path.exists(sol_dir):
+        with open(sol_dir) as f:
+            obj_values = json.load(f)
     while not out_queue.empty():
         instance = out_queue.get()
         obj_values[instance['filename']] = instance['opt_sol']
 
-    # remove when switching to individual files
-    instance_dir = f'data/{problem}/instances'
-    with open(instance_dir + '/obj_values_.json', "w") as f:
+    with open(sol_dir, "w") as f:
         json.dump(obj_values, f)
 
     for p in workers:

@@ -120,7 +120,9 @@ def extract_GNN_state(model, buffer=None):
     return variable_features, edge_features, constraint_features
 
 
-def extract_MLP_state(model, node1, node2):
+def extract_MLP_state(model, node1, node2):  # 12 features
+    # Branching variable features
+    # ----------------------------------
     current_depth = model.getDepth() + 1
     branch_state = observation.branching_features(model, node1)
     branch_state['n_inferences'] /= current_depth
@@ -134,21 +136,25 @@ def extract_MLP_state(model, node1, node2):
         branch_state['n_inferences'] /= current_depth
         branching_features2 = list(branch_state.values())
 
-    node_state1 = observation.node_features(model, node1)
-    node_state2 = observation.node_features(model, node2)
-
-    global_state = observation.global_features(model)
-    bound_norm = max(global_state['global_ub'] - global_state['global_lb'], 1)
-    node_state1['relative_bound'] = (node_state1['node_lb'] - global_state['global_lb']) / bound_norm
-    node_state2['relative_bound'] = (node_state2['node_lb'] - global_state['global_lb']) / bound_norm
-
+    # Node features
+    # -------------------------------------------
     root_lb = model.getRootNode().getLowerbound()
     if model.isZero(root_lb): root_lb = 1
+    node_state1 = observation.node_features(model, node1)
+    node_state2 = observation.node_features(model, node2)
     node_state1['node_lb'] /= root_lb
     node_state2['node_lb'] /= root_lb
     node_state1['estimate'] /= root_lb
     node_state2['estimate'] /= root_lb
-    global_state['global_lb'] /= root_lb
+
+    global_lb = model.getLowerbound()
+    global_state = observation.global_features(model)
+    bound_norm = max(global_state['global_ub'] - global_lb, 1)
+    node_state1['relative_bound'] = (node1.getLowerbound() - global_lb) / bound_norm
+    node_state2['relative_bound'] = (node2.getLowerbound() - global_lb) / bound_norm
+
+    # Global features
+    # -----------------------------------
     global_state['global_ub'] /= root_lb
 
     node_features1 = list(node_state1.values())
@@ -161,7 +167,9 @@ def extract_MLP_state(model, node1, node2):
     return state1, state2
 
 
-def extract_MLP_state_original(model, node1, node2):
+def extract_MLP_state_original(model, node1, node2):  # 20 features
+    # Branching variable features
+    # ----------------------------------
     current_depth = model.getDepth() + 1
     branch_state = observation.branching_features(model, node1)
     branch_state['n_inferences'] /= current_depth
@@ -175,22 +183,39 @@ def extract_MLP_state_original(model, node1, node2):
         branch_state['n_inferences'] /= current_depth
         branching_features2 = list(branch_state.values())
 
-    node_state1 = observation.node_features(model, node1)
-    node_state2 = observation.node_features(model, node2)
-
-    global_state = observation.global_features(model)
-    bound_norm = max(global_state['global_ub'] - global_state['global_lb'], 1)
-    node_state1['relative_bound'] = (node_state1['node_lb'] - global_state['global_lb']) / bound_norm
-    node_state2['relative_bound'] = (node_state2['node_lb'] - global_state['global_lb']) / bound_norm
-
+    # Node features
+    # -------------------------------------------
     root_lb = model.getRootNode().getLowerbound()
     if model.isZero(root_lb): root_lb = 1
-    node_state1['node_lb'] /= root_lb
-    node_state2['node_lb'] /= root_lb
-    node_state1['estimate'] /= root_lb
-    node_state2['estimate'] /= root_lb
-    global_state['global_lb'] /= root_lb
+    node_state1 = {'type_child': node1.getType() == 3,
+                   'type_sibling': node1.getType() == 2,
+                   'type_leaf': node1.getType() == 4,
+                   'estimate': node1.getEstimate() / root_lb,
+                   'node_lb': node1.getLowerbound() / root_lb,
+                   }
+
+    node_state2 = {'type_child': node2.getType() == 3,
+                   'type_sibling': node2.getType() == 2,
+                   'type_leaf': node2.getType() == 4,
+                   'estimate': node2.getEstimate() / root_lb,
+                   'node_lb': node2.getLowerbound() / root_lb,
+                   }
+
+    global_state = observation.global_features(model)
+    global_lb = model.getLowerbound()
+    bound_norm = max(global_state['global_ub'] - global_lb, 1)
+    node_state1['relative_bound'] = (node_state1['node_lb'] - global_lb) / bound_norm
+    node_state2['relative_bound'] = (node_state2['node_lb'] - global_lb) / bound_norm
+    node_state1['relative_depth'] = node1.getDepth() / current_depth
+    node_state2['relative_depth'] = node2.getDepth() / current_depth
+    node_state1['node_depth'] = node1.getDepth()
+    node_state2['node_depth'] = node2.getDepth()
+
+    # Global features
+    # -----------------------------------
     global_state['global_ub'] /= root_lb
+    global_state['focus_depth'] = current_depth
+    global_state['plunge_depth'] = model.getPlungeDepth()
 
     node_features1 = list(node_state1.values())
     node_features2 = list(node_state2.values())

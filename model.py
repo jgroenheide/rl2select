@@ -5,9 +5,9 @@ import torch_geometric
 
 class MLPPolicy(th.nn.Module):
 
-    def __init__(self):
+    def __init__(self, in_features=12):
         super().__init__()
-        self.model = th.nn.Sequential(th.nn.Linear(16, 32),
+        self.model = th.nn.Sequential(th.nn.Linear(in_features, 32),
                                       th.nn.LeakyReLU(),
                                       th.nn.Linear(32, 1))
 
