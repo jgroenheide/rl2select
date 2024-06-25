@@ -159,8 +159,7 @@ def collect_evaluation(instances, opt_sols, seed, n_jobs, nodesel, static, resul
         writer.writeheader()
 
         for _ in trange(6 * len(instances)):
-            try:
-                answer = out_queue.get(timeout=100)
+            try: answer = out_queue.get(timeout=100)
             # if no response is given in time_limit seconds,
             # the solver has crashed and the worker is dead:
             # start a new worker to pick up the pieces.
@@ -272,8 +271,8 @@ if __name__ == "__main__":
     }[args.problem]
     results = {}
     for instance_type in ["test", "transfer"]:
-        instance_dir = f'data/{args.problem}/instances'
         difficulty = transfer_difficulty if instance_type == "transfer" else config['difficulty'][args.problem]
+        instance_dir = f'data/{args.problem}/instances'
         instances = [str(file).replace('\\', '/') for file in
                      glob.glob(instance_dir + f'/{instance_type}_{difficulty}/*.lp')]
 

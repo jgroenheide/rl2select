@@ -221,7 +221,7 @@ def collect_solutions(problem, config, n_jobs, k_sols, random):
         'setcover': "500_1000_0.05",
         'cauctions': "200_1000"
     }[problem]
-    for instance_type, num_instances in [("test", 50), ("transfer", 50)]:  # config['num_instances']:
+    for instance_type, num_instances in config['num_instances']:
         if instance_type == "transfer": difficulty = transfer_difficulty
         instance_dir = f'data/{problem}/instances/{instance_type}_{difficulty}'
 
@@ -229,20 +229,14 @@ def collect_solutions(problem, config, n_jobs, k_sols, random):
             in_queue.put([instance, random.integers(2**31)])
         print(f"{num_instances} {instance_type} instances on queue.")
 
-    in_queue.join()
-    obj_values = {}
-    # remove when switching to individual files
-    instance_dir = f'data/{problem}/instances'
-    sol_dir = instance_dir + '/obj_values.json'
-    if os.path.exists(sol_dir):
-        with open(sol_dir) as f:
-            obj_values = json.load(f)
-    while not out_queue.empty():
-        instance = out_queue.get()
-        obj_values[instance['filename']] = instance['opt_sol']
-
-    with open(sol_dir, "w") as f:
-        json.dump(obj_values, f)
+        in_queue.join()
+        obj_values = {}
+        while not out_queue.empty():
+            instance = out_queue.get()
+            filename = instance['filename']
+            obj_values[filename] = instance['opt_sol']
+        with open(instance_dir + '/obj_values.json', "w") as fp:
+            json.dump(obj_values, fp)
 
     for p in workers:
         p.terminate()
@@ -292,14 +286,16 @@ def collector(problem, config, n_jobs, k_sols, random):
             dispatcher.start()
 
         tmp_dir = None
+        instance_dir = None
         for i in trange(num_instances):
             instance = out_queue.get()
-            old_filename = instance['filename']
-            # TODO: activate this code only once per instance_type
-            tmp_dir = os.path.dirname(old_filename)
-            instance_dir = tmp_dir.replace('tmp', instance_type)
-            os.makedirs(instance_dir, exist_ok=True)
+            if tmp_dir is None:
+                tmp_dir = os.path.dirname(instance['filename'])
+                tmp_dirs.append(tmp_dir)
+                instance_dir = tmp_dir.replace('tmp', instance_type)
+                os.makedirs(instance_dir, exist_ok=True)
 
+            old_filename = instance['filename']
             new_filename = instance_dir + f'/instance_{i + 1}.lp'
             os.rename(old_filename, new_filename)
 
@@ -310,9 +306,8 @@ def collector(problem, config, n_jobs, k_sols, random):
                 nnodes.append(instance['nnodes'])
 
             obj_values[new_filename] = instance['opt_sol']
-
-        if instance_type in ["test", "transfer"]:
-            tmp_dirs.append(tmp_dir)
+        with open(instance_dir + f'/obj_values.json', "w") as f:
+            json.dump(obj_values, f)
 
     # secure objective values as soon as possible to avoid losing data
     with open(f'data/{problem}/instances/obj_values.json', "w") as f:

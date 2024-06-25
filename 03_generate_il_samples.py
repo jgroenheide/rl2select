@@ -51,7 +51,7 @@ def make_samples(in_queue, out_queue, tmp_dir, k_sols, sampling):
 
         # 1: CPU user seconds, 2: wall clock time
         m.setIntParam('timing/clocktype', 1)
-        m.setRealParam('limits/time', 150)
+        m.setRealParam('limits/time', 90)
         utilities.init_scip_params(m, seed)
 
         solutions = []
@@ -77,18 +77,18 @@ def make_samples(in_queue, out_queue, tmp_dir, k_sols, sampling):
         m.freeProb()
 
         count = max(sampler.sample_count, 1)
-        print(f"{instance_id}: {[f'{action / count:.2f}' for action in sampler.action_count]}")
+        print(f"{instance_id}: {[f'{x / count:.2f}' for x in sampler.action_count]}")
         print(f"{instance_id}: Process completed, {sampler.sample_count} samples")
 
         out_queue.put({
             'type': "done",
             'episode': episode,
-            'action_count': sampler.action_count,
-            'sample_count': sampler.sample_count,
-            'total_depth': oracle.depth,
-            'max_depth': oracle.max_depth,
-            'total_plunge_depth': oracle.plunge_depth,
-            'max_p_depth': oracle.max_p_depth,
+            # 'action_count': sampler.action_count,
+            # 'sample_count': sampler.sample_count,
+            # 'total_depth': oracle.depth,
+            # 'max_depth': oracle.max_depth,
+            # 'total_plunge_depth': oracle.plunge_depth,
+            # 'max_p_depth': oracle.max_p_depth,
         })
 
 
@@ -127,8 +127,12 @@ def collect_samples(instances, sample_dir, n_jobs, k_sols, max_samples, sampling
         Directory in which to write samples.
     n_jobs : int
         Number of jobs for parallel sampling.
+    k_sols : int
+        Number of solutions to save per instance.
     max_samples : int
         Number of samples to collect.
+    sampling : str
+        Type of sampling to perform.
     random: np.random.Generator
         Random number generator
     """
@@ -142,7 +146,7 @@ def collect_samples(instances, sample_dir, n_jobs, k_sols, max_samples, sampling
     # temp solution for limited threads
     # removes the need for the dispatcher
     # in_queue = [(episode, instance, random.integers(2**31))
-    #                 for episode, instance in enumerate(instances)]
+    #             for episode, instance in enumerate(instances)]
     # removes the need for the workers
     # make_samples(in_queue, out_queue, tmp_dir, k_sols, sampling)
 
@@ -169,16 +173,15 @@ def collect_samples(instances, sample_dir, n_jobs, k_sols, max_samples, sampling
     n_samples = 0
     in_buffer = 0
 
-    sample_count = 0
-    action_count = [0, 0]
-
-    total_depth = 0
-    max_depth = 0
-    total_plunge_depth = 0
-    max_p_depth = 0
+    # sample_count = 0
+    # action_count = [0, 0]
+    #
+    # total_depth = 0
+    # max_depth = 0
+    # total_plunge_depth = 0
+    # max_p_depth = 0
     while n_samples < max_samples:
-        try:
-            sample = out_queue.get(timeout=160)
+        try: sample = out_queue.get(timeout=100)
         # if no response is given in time_limit seconds,
         # the solver has crashed and the worker is dead:
         # start a new worker to pick up the pieces.
@@ -216,20 +219,20 @@ def collect_samples(instances, sample_dir, n_jobs, k_sols, max_samples, sampling
             # write samples from current episode
             for sample in samples_to_write:
                 # if final sample is processed...
-                if sample['type'] == 'done':
+                if sample['type'] == "done":
                     # move to next episode
                     del buffer[episode_i]
 
-                    action_count[0] += sample['action_count'][0]
-                    action_count[1] += sample['action_count'][1]
-                    sample_count += sample['sample_count']
-                    print(f"[m {os.getpid()}] episode {sample['episode']}: "
-                          f"{sample_count} / {max_samples} samples written.")
+                    # action_count[0] += sample['action_count'][0]
+                    # action_count[1] += sample['action_count'][1]
+                    # sample_count += sample['sample_count']
+                    print(f"[m {os.getpid()}] episode {sample['episode']}:"
+                          f" {n_samples} / {max_samples} samples written.")
 
-                    total_depth += sample['total_depth']
-                    max_depth = max(max_depth, sample['max_depth'])
-                    total_plunge_depth += sample['total_plunge_depth']
-                    max_p_depth = max(max_p_depth, sample['max_p_depth'])
+                    # total_depth += sample['total_depth']
+                    # max_depth = max(max_depth, sample['max_depth'])
+                    # total_plunge_depth += sample['total_plunge_depth']
+                    # max_p_depth = max(max_p_depth, sample['max_p_depth'])
                     episode_i += 1
                     break
 
@@ -248,19 +251,17 @@ def collect_samples(instances, sample_dir, n_jobs, k_sols, max_samples, sampling
     for p in workers:
         p.terminate()
 
-    if sample_count == 0:
-        print("Sampling completed: No sampling info available")
-    else:
-        class_dist = [f"{x / sample_count:.2f}" for x in action_count]
-        print(f"Sampling completed: (Left, Right): {class_dist}")
-    # with open(sample_dir + '/class_dist.json', "w") as f:
-    #     json.dump([x / sample_count for x in action_count], f)
+    # if sample_count == 0:
+    #     print("Sampling completed: No sampling info available")
+    # else:
+    #     class_dist = [f"{x / sample_count:.2f}" for x in action_count]
+    #     print(f"Sampling completed: (Left, Right): {class_dist}")
 
-    print(f"avg_depth: {total_depth}")
-    print(f"max_depth: {max_depth}")
-    print(f"avg_plunge_depth: {total_plunge_depth}")
-    print(f"max_p_depth: {max_p_depth}")
-    print(f"num_samples: {sample_count}")
+    # print(f"avg_depth: {total_depth}")
+    # print(f"max_depth: {max_depth}")
+    # print(f"avg_plunge_depth: {total_plunge_depth}")
+    # print(f"max_p_depth: {max_p_depth}")
+    # print(f"num_samples: {sample_count}")
 
 
 if __name__ == '__main__':
@@ -307,12 +308,13 @@ if __name__ == '__main__':
 
     rng = np.random.default_rng(args.seed)
     difficulty = config['difficulty'][args.problem]
-    sample_dir = f'data/{args.problem}/samples/k={args.ksols}_{args.sampling_type}'
+    # TODO: Remove "original" from path
+    sample_dir = f'data/{args.problem}/samples/k={args.ksols}_{args.sampling_type}_original'
 
     for instance_type in ["train", "valid"]:
         instances = glob.glob(f'data/{args.problem}/instances/{instance_type}_{difficulty}/*.lp')
-        num_samples = args.ratio * len(instances)
         out_dir = sample_dir + f'/{instance_type}_{difficulty}'
         os.makedirs(out_dir, exist_ok=True)
+        num_samples = args.ratio * len(instances)
         print(f"{len(instances)} {instance_type} instances for {num_samples} {args.sampling_type} samples")
         collect_samples(instances, out_dir, args.njobs, args.ksols, num_samples, args.sampling_type, rng)

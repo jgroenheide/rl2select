@@ -68,16 +68,16 @@ class NodeselOracle(NodeselEstimate):
         self.sampling = sampling
         self.solutions = solutions
 
-        # save parent sol rank for speedup
-        # root node is always an oracle node
+        # root node contains all solutions
+        # split the solutions at each node
         self.k_sols = len(solutions)
         indices = list(range(self.k_sols))
         self.sol_indices = {1: indices}
 
-        self.depth = 0
-        self.max_depth = 0
-        self.plunge_depth = 0
-        self.max_p_depth = 0
+        # self.depth = 0
+        # self.max_depth = 0
+        # self.plunge_depth = 0
+        # self.max_p_depth = 0
 
     def nodeselect(self):
         # Stop sampling after 5000 nodes
@@ -93,52 +93,6 @@ class NodeselOracle(NodeselEstimate):
         # print(f"Chose: {selnode['selnode'].getNumber()}")
         # print("*** ====================== ***")
         # return selnode
-
-        # depth = self.model.getDepth()
-        # if depth < 0:
-        #     # choose the root node to start
-        #     return super().nodeselect()
-        #
-        # node = self.model.getCurrentNode()
-        # node_number = node.getNumber()
-        # if node_number not in self.sol_indices:
-        #     # continue normal selection
-        #     return super().nodeselect()
-        #
-        # if self.model.getNChildren() < 2:
-        #     return super().nodeselect()
-        # _, children, _ = self.model.getOpenNodes()
-        #
-        # sol_ranks = [self.k_sols, self.k_sols]
-        # for child_index, child in enumerate(children):
-        #     child_number = child.getNumber()
-        #     # If the parent node contained the optimal sol,
-        #     # it is sufficient to only check the new bounds
-        #     branchings = child.getParentBranchings()
-        #     for sol_index in self.sol_indices[node_number]:
-        #         sol = self.solutions[sol_index]
-        #         for bvar, bbound, btype in zip(*branchings):
-        #             if btype == 0 and sol[bvar] < bbound: break  # EXCEEDS LOWER BOUND
-        #             if btype == 1 and sol[bvar] > bbound: break  # EXCEEDS UPPER BOUND
-        #         else:                                            # SATISFIES ALL BOUNDS
-        #             if child_number not in self.sol_indices:
-        #                 self.sol_indices[child_number] = []
-        #                 sol_ranks[child_index] = sol_index
-        #             self.sol_indices[child_number].append(sol_index)
-        #
-        # # My children have been processed;
-        # # My work here is done. Goodbye.
-        # del self.sol_indices[node_number]
-        #
-        # # Save 'both' if both children lead to a solution
-        # action = int(sol_ranks[1] < sol_ranks[0])
-        # both = sol_ranks[0] < self.k_sols and sol_ranks[1] < self.k_sols
-        # print(f"Node: {node_number} | Depth: {depth} | Action: {['left', 'right'][action]} | Both: {both}")
-        #
-        # state = extract.extract_MLP_state(self.model, *children)
-        # self.sampler.create_sample(*state, action)
-        #
-        # return super().nodeselect()
 
     def nodecomp(self, node1, node2):
         siblings = node1.getParent() == node2.getParent()
@@ -182,13 +136,13 @@ class NodeselOracle(NodeselEstimate):
               f"| Node {node2.getNumber()}: {sol_rank[1]} "
               f"| Action: {['left', 'right'][action]}")
 
-        state = extract.extract_MLP_state(self.model, node1, node2)
+        state = extract.extract_MLP_state_original(self.model, node1, node2)
         self.sampler.create_sample(*state, action)
 
-        current_depth = self.model.getDepth() + 1
-        self.depth += current_depth
-        self.max_depth = max(self.max_depth, current_depth)
-        self.plunge_depth += self.model.getPlungeDepth()
-        self.max_p_depth = max(self.max_p_depth, self.model.getPlungeDepth())
+        # current_depth = self.model.getDepth() + 1
+        # self.depth += current_depth
+        # self.max_depth = max(self.max_depth, current_depth)
+        # self.plunge_depth += self.model.getPlungeDepth()
+        # self.max_p_depth = max(self.max_p_depth, self.model.getPlungeDepth())
 
         return super().nodecomp(node1, node2)

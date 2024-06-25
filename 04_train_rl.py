@@ -79,6 +79,7 @@ if __name__ == '__main__':
     # the pre-computed optimal solutions for the instances
     difficulty = config['difficulty'][args.problem]
     instance_dir = f'data/{args.problem}/instances'
+    # instance_dir = f'data/{args.problem}/instances/valid_{difficulty}'
     valid_files = [str(file).replace('\\', '/') for file in
                    rng.choice(glob.glob(instance_dir + f'/valid_{difficulty}/*.lp'),
                               size=config['num_valid_instances'], replace=False)]

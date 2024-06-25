@@ -204,8 +204,8 @@ def extract_MLP_state_original(model, node1, node2):  # 20 features
     global_state = observation.global_features(model)
     global_lb = model.getLowerbound()
     bound_norm = max(global_state['global_ub'] - global_lb, 1)
-    node_state1['relative_bound'] = (node_state1['node_lb'] - global_lb) / bound_norm
-    node_state2['relative_bound'] = (node_state2['node_lb'] - global_lb) / bound_norm
+    node_state1['relative_bound'] = (node1.getLowerbound() - global_lb) / bound_norm
+    node_state2['relative_bound'] = (node2.getLowerbound() - global_lb) / bound_norm
     node_state1['relative_depth'] = node1.getDepth() / current_depth
     node_state2['relative_depth'] = node2.getDepth() / current_depth
     node_state1['node_depth'] = node1.getDepth()

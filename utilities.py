@@ -94,11 +94,11 @@ def init_scip_params(model, seed, static=False,
 
 
 def extract_MLP_statistics(data_loader, num_samples):
-    stats_min = np.zeros((16,))
-    stats_max = np.zeros((16,))
-    stats_avg = np.zeros((16,))
+    stats_min = np.zeros((12,))
+    stats_max = np.zeros((12,))
+    stats_avg = np.zeros((12,))
     for state, _ in data_loader:
-        state = np.concatenate(state, axis=0)  # (2048, 16)
+        state = np.concatenate(state, axis=0)  # (2048, 12)
         stats_min = np.minimum(stats_min, state.min(axis=0))
         stats_max = np.maximum(stats_max, state.max(axis=0))
         stats_avg = np.add(stats_avg, state.sum(axis=0))

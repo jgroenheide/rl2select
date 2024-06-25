@@ -217,4 +217,5 @@ if __name__ == "__main__":
     log(f"PROCESS COMPLETED: BEST MODEL FOUND IN EPOCH {best_epoch}", logfile)
     log(f"BEST VALID LOSS: {valid_loss:0.3f} | BEST VALID ACCURACY: {valid_acc:0.3f}", logfile)
     os.makedirs(f'actor/{args.problem}', exist_ok=True)
-    th.save(model.state_dict(), f'actor/{args.problem}/il_{args.dir}.pkl')
+    # TODO: Remove "original" from path
+    th.save(model.state_dict(), f'actor/{args.problem}/il_{args.dir}_original.pkl')
