@@ -22,53 +22,6 @@ from tqdm import trange
 gen = importlib.import_module('01_generate_instances')
 
 
-def solve_instance(in_queue, out_queue, k_sols):
-    """
-    Worker loop: fetch an instance, run an episode and record samples.
-    Parameters
-    ----------
-    in_queue : mp.JoinableQueue
-        Input queue from which instances are received.
-    out_queue : mp.SimpleQueue
-        Output queue in which to put solutions.
-    k_sols: int
-        Number of solutions to save
-    """
-    while True:
-        instance, seed = in_queue.get()
-
-        # Initialize SCIP model
-        m = scip.Model()
-        m.hideOutput()
-        m.readProblem(instance)
-
-        # 1: CPU user seconds, 2: wall clock time
-        m.setIntParam('timing/clocktype', 1)
-        m.setRealParam('limits/time', 30)
-
-        m.optimize()
-
-        # Statistics to help tune new problems
-        print(f"Status: {m.getStatus()}")
-        print(f"NNodes: {m.getNNodes()}")
-        print(f"NSols: {m.getNBestSolsFound()}")
-        print(f"MaxDepth: {m.getMaxDepth()}")
-
-        if m.getStatus() == "optimal" and 100 < m.getNNodes() < 1000:
-            # retrieve and save solutions to individual files
-            solutions = m.getSols()[:k_sols]
-            for i, sol in enumerate(solutions):
-                filename = f'{instance[:-3]}-{i + 1}.sol'
-                m.writeSol(sol, filename)
-            out_queue.put({'filename': instance,
-                           'num_sols': len(solutions),
-                           'opt_sol': m.getObjVal(),
-                           'nnodes': m.getNNodes()})
-
-        m.freeProb()
-        in_queue.task_done()
-
-
 def generate_instances(orders_queue, problem, random, transfer=False):
     out_dir = f'data/{problem}/instances'
     os.makedirs(out_dir, exist_ok=True)
@@ -180,6 +133,53 @@ def generate_instances(orders_queue, problem, random, transfer=False):
             episode += 1
 
 
+def solve_instance(in_queue, out_queue, k_sols):
+    """
+    Worker loop: fetch an instance, run an episode and record samples.
+    Parameters
+    ----------
+    in_queue : mp.JoinableQueue
+        Input queue from which instances are received.
+    out_queue : mp.SimpleQueue
+        Output queue in which to put solutions.
+    k_sols: int
+        Number of solutions to save
+    """
+    while True:
+        instance, seed = in_queue.get()
+
+        # Initialize SCIP model
+        m = scip.Model()
+        m.hideOutput()
+        m.readProblem(instance)
+
+        # 1: CPU user seconds, 2: wall clock time
+        m.setIntParam('timing/clocktype', 1)
+        m.setRealParam('limits/time', 30)
+
+        m.optimize()
+
+        # Statistics to help tune new problems
+        # print(f"Status: {m.getStatus()}")
+        # print(f"NNodes: {m.getNNodes()}")
+        # print(f"NSols: {m.getNBestSolsFound()}")
+        # print(f"MaxDepth: {m.getMaxDepth()}")
+
+        if m.getStatus() == "optimal" and 100 < m.getNNodes() < 1000:
+            # retrieve and save solutions to individual files
+            solutions = m.getSols()[:k_sols]
+            for i, sol in enumerate(solutions):
+                filename = f'{instance[:-3]}-{i + 1}.sol'
+                m.writeSol(sol, filename)
+            out_queue.put({'filename': instance,
+                           'num_sols': len(solutions),
+                           'opt_sol': m.getObjVal(),
+                           'nnodes': m.getNNodes()})
+
+        m.freeProb()
+        in_queue.task_done()
+
+
 def collect_solutions(problem, config, n_jobs, k_sols, random):
     """
     Runs branch-and-bound episodes on the given set of instances
@@ -210,7 +210,6 @@ def collect_solutions(problem, config, n_jobs, k_sols, random):
         workers.append(p)
         p.start()
 
-    instances = []
     difficulty = config['difficulty'][problem]
     transfer_difficulty = {
         'indset': "1000_4",
@@ -221,13 +220,13 @@ def collect_solutions(problem, config, n_jobs, k_sols, random):
         'setcover': "500_1000_0.05",
         'cauctions': "200_1000"
     }[problem]
-    for instance_type, _ in config['num_instances']:
+    for instance_type, _ in ["test", "transfer"]:  # config['num_instances']:
         if instance_type == "transfer": difficulty = transfer_difficulty
         instance_dir = f'data/{problem}/instances/{instance_type}_{difficulty}'
 
         for instance in glob.glob(instance_dir + f'/*.lp'):
             in_queue.put([instance, random.integers(2**31)])
-        print(f"{len(instances)} {instance_type} instances on queue.")
+        # print(f"{len(instances)} {instance_type} instances on queue.")
 
     in_queue.join()
     obj_values = {}
@@ -291,6 +290,7 @@ def collector(problem, config, n_jobs, k_sols, random):
         for i in trange(num_instances):
             instance = out_queue.get()
             old_filename = instance['filename']
+            # TODO: activate this code only once per instance_type
             tmp_dir = os.path.dirname(old_filename)
             instance_dir = tmp_dir.replace('tmp', instance_type)
             os.makedirs(instance_dir, exist_ok=True)
@@ -333,25 +333,31 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument(
         'problem',
-        help='MILP instance type to process.',
+        help="MILP instance type to process.",
         choices=config['problems'],
     )
     parser.add_argument(
         '-s', '--seed',
-        help='Random generator seed.',
+        help="Random generator seed.",
         default=config['seed'],
         type=utilities.valid_seed,
     )
     parser.add_argument(
         '-k', '--ksols',
-        help='Number of solutions to save.',
+        help="Number of solutions to save.",
         default=config['k'],
         type=int,
     )
     parser.add_argument(
         '-j', '--njobs',
-        help='Number of parallel jobs.',
+        help="Number of parallel jobs.",
         default=1,
+        type=int,
+    )
+    parser.add_argument(
+        '-v', '--verbose',
+        help="Verbosity of the program.",
+        default=0,
         type=int,
     )
     args = parser.parse_args()

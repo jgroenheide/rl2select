@@ -719,12 +719,12 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument(
         'problem',
-        help='Instance type to process.',
+        help="Instance type to process.",
         choices=config['problems'],
     )
     parser.add_argument(
         '-s', '--seed',
-        help='Random generator seed.',
+        help="Random generator seed.",
         type=utilities.valid_seed,
         default=config['seed'],
     )

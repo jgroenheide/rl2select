@@ -152,9 +152,48 @@ def extract_MLP_state(model, node1, node2):
     global_state['global_ub'] /= root_lb
 
     node_features1 = list(node_state1.values())
-
     node_features2 = list(node_state2.values())
+    global_features = list(global_state.values())
 
+    state1 = np.concatenate((branching_features1, node_features1, global_features), dtype=np.float32)
+    state2 = np.concatenate((branching_features2, node_features2, global_features), dtype=np.float32)
+    # return branching_features1, branching_features2, node_features1, node_features2, global_features
+    return state1, state2
+
+
+def extract_MLP_state_original(model, node1, node2):
+    current_depth = model.getDepth() + 1
+    branch_state = observation.branching_features(model, node1)
+    branch_state['n_inferences'] /= current_depth
+
+    branching_features1 = list(branch_state.values())
+
+    if node1.getParent() == node2.getParent():
+        branching_features2 = branching_features1
+    else:
+        branch_state = observation.branching_features(model, node2)
+        branch_state['n_inferences'] /= current_depth
+        branching_features2 = list(branch_state.values())
+
+    node_state1 = observation.node_features(model, node1)
+    node_state2 = observation.node_features(model, node2)
+
+    global_state = observation.global_features(model)
+    bound_norm = max(global_state['global_ub'] - global_state['global_lb'], 1)
+    node_state1['relative_bound'] = (node_state1['node_lb'] - global_state['global_lb']) / bound_norm
+    node_state2['relative_bound'] = (node_state2['node_lb'] - global_state['global_lb']) / bound_norm
+
+    root_lb = model.getRootNode().getLowerbound()
+    if model.isZero(root_lb): root_lb = 1
+    node_state1['node_lb'] /= root_lb
+    node_state2['node_lb'] /= root_lb
+    node_state1['estimate'] /= root_lb
+    node_state2['estimate'] /= root_lb
+    global_state['global_lb'] /= root_lb
+    global_state['global_ub'] /= root_lb
+
+    node_features1 = list(node_state1.values())
+    node_features2 = list(node_state2.values())
     global_features = list(global_state.values())
 
     state1 = np.concatenate((branching_features1, node_features1, global_features), dtype=np.float32)

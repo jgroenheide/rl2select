@@ -78,9 +78,10 @@ if __name__ == '__main__':
     # recover training / validation instances and collect
     # the pre-computed optimal solutions for the instances
     difficulty = config['difficulty'][args.problem]
-    instance_dir = f'data/{args.problem}/instances/valid_{difficulty}'
-    valid_files = [str(file).replace('\\', '/') for file in rng.choice(
-        glob.glob(instance_dir + '/*.lp'), size=config['num_valid_instances'], replace=False)]
+    instance_dir = f'data/{args.problem}/instances'
+    valid_files = [str(file).replace('\\', '/') for file in
+                   rng.choice(glob.glob(instance_dir + f'/valid_{difficulty}/*.lp'),
+                              size=config['num_valid_instances'], replace=False)]
 
     with open(instance_dir + '/obj_values.json') as f:
         opt_sols = json.load(f)
@@ -90,7 +91,7 @@ if __name__ == '__main__':
                    for instance in valid_files for seed in range(config['num_seeds'])]
     valid_freq = len(valid_batch)
 
-    instance_dir = f'data/{args.problem}/instances/train_{difficulty}'
+    # instance_dir = f'data/{args.problem}/instances/train_{difficulty}'
     train_files = [str(file).replace('\\', '/') for file in
                    glob.glob(instance_dir + f'/train_{difficulty}/*.lp')]
 
