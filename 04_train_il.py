@@ -130,7 +130,7 @@ if __name__ == "__main__":
     train_files = [str(file) for file in glob.glob(sample_dir + '/*.pkl')]
 
     if config['model'] == "MLP":
-        model = ml.MLPPolicy(20).to(device)
+        model = ml.MLPPolicy(16).to(device)
 
         train_data = data.Dataset(train_files)
         valid_data = data.Dataset(valid_files)

@@ -167,7 +167,7 @@ def extract_MLP_state(model, node1, node2):  # 12 features
     return state1, state2
 
 
-def extract_MLP_state_original(model, node1, node2):  # 20 features
+def extract_MLP_state_original(model, node1, node2):  # 16 features
     # Branching variable features
     # ----------------------------------
     current_depth = model.getDepth() + 1
