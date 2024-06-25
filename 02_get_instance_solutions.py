@@ -220,7 +220,7 @@ def collect_solutions(problem, config, n_jobs, k_sols, random):
         'setcover': "500_1000_0.05",
         'cauctions': "200_1000"
     }[problem]
-    for instance_type, _ in ["test", "transfer"]:  # config['num_instances']:
+    for instance_type, _ in [("test", 0), ("transfer", 0)]:  # config['num_instances']:
         if instance_type == "transfer": difficulty = transfer_difficulty
         instance_dir = f'data/{problem}/instances/{instance_type}_{difficulty}'
 
