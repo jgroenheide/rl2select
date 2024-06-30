@@ -182,7 +182,7 @@ if __name__ == '__main__':
         # TRAINING #
         if epoch < config['num_epochs']:
             t_queue.join()  # wait for all training episodes to be processed
-            assert t_samples > 0  # crashes the program when I want it to...
+            assert len(t_samples) > 0  # crashes the program when I want it to...
             log("  training jobs finished", logfile)
             log(f"  {len(t_samples)} training samples collected", logfile)
             t_losses = brain.update(t_samples)
