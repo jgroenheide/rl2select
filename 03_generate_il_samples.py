@@ -83,12 +83,6 @@ def make_samples(in_queue, out_queue, tmp_dir, k_sols, sampling):
         out_queue.put({
             'type': "done",
             'episode': episode,
-            # 'action_count': sampler.action_count,
-            # 'sample_count': sampler.sample_count,
-            # 'total_depth': oracle.depth,
-            # 'max_depth': oracle.max_depth,
-            # 'total_plunge_depth': oracle.plunge_depth,
-            # 'max_p_depth': oracle.max_p_depth,
         })
 
 
@@ -173,13 +167,7 @@ def collect_samples(instances, sample_dir, n_jobs, k_sols, max_samples, sampling
     n_samples = 0
     in_buffer = 0
 
-    # sample_count = 0
     # action_count = [0, 0]
-    #
-    # total_depth = 0
-    # max_depth = 0
-    # total_plunge_depth = 0
-    # max_p_depth = 0
     while n_samples < max_samples:
         try: sample = out_queue.get(timeout=100)
         # if no response is given in time_limit seconds,
@@ -225,14 +213,9 @@ def collect_samples(instances, sample_dir, n_jobs, k_sols, max_samples, sampling
 
                     # action_count[0] += sample['action_count'][0]
                     # action_count[1] += sample['action_count'][1]
-                    # sample_count += sample['sample_count']
                     print(f"[m {os.getpid()}] episode {sample['episode']}:"
                           f" {n_samples} / {max_samples} samples written.")
 
-                    # total_depth += sample['total_depth']
-                    # max_depth = max(max_depth, sample['max_depth'])
-                    # total_plunge_depth += sample['total_plunge_depth']
-                    # max_p_depth = max(max_p_depth, sample['max_p_depth'])
                     episode_i += 1
                     break
 
@@ -250,18 +233,7 @@ def collect_samples(instances, sample_dir, n_jobs, k_sols, max_samples, sampling
     # stop all workers (hard)
     for p in workers:
         p.terminate()
-
-    # if sample_count == 0:
-    #     print("Sampling completed: No sampling info available")
-    # else:
-    #     class_dist = [f"{x / sample_count:.2f}" for x in action_count]
-    #     print(f"Sampling completed: (Left, Right): {class_dist}")
-
-    # print(f"avg_depth: {total_depth}")
-    # print(f"max_depth: {max_depth}")
-    # print(f"avg_plunge_depth: {total_plunge_depth}")
-    # print(f"max_p_depth: {max_p_depth}")
-    # print(f"num_samples: {sample_count}")
+    print(f"[m {os.getpid()}] sampling completed")
 
 
 if __name__ == '__main__':

@@ -80,7 +80,7 @@ if __name__ == '__main__':
     difficulty = config['difficulty'][args.problem]
     instance_dir = f'data/{args.problem}/instances'
     # instance_dir = f'data/{args.problem}/instances/valid_{difficulty}'
-    valid_files = [str(file).replace('\\', '/') for file in
+    valid_files = [str(file).replace(os.sep, '/') for file in
                    rng.choice(glob.glob(instance_dir + f'/valid_{difficulty}/*.lp'),
                               size=config['num_valid_instances'], replace=False)]
 
@@ -93,7 +93,7 @@ if __name__ == '__main__':
     valid_freq = len(valid_batch)
 
     # instance_dir = f'data/{args.problem}/instances/train_{difficulty}'
-    train_files = [str(file).replace('\\', '/') for file in
+    train_files = [str(file).replace(os.sep, '/') for file in
                    glob.glob(instance_dir + f'/train_{difficulty}/*.lp')]
 
 
