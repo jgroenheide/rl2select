@@ -70,7 +70,7 @@ def evaluate(in_queue, out_queue, nodesel, static):
 
             # 1: CPU user seconds, 2: wall clock time
             m.setIntParam('timing/clocktype', 1)
-            m.setRealParam('limits/time', 90)
+            m.setRealParam('limits/time', 150)
             utilities.init_scip_params(m, seed, static)
             m.setRealParam('limits/objectivestop', opt_sol)
 
@@ -159,7 +159,7 @@ def collect_evaluation(instances, opt_sols, seed, n_jobs, nodesel, static, resul
         writer.writeheader()
 
         for _ in trange(6 * len(instances)):
-            try: answer = out_queue.get(timeout=100)
+            try: answer = out_queue.get(timeout=160)
             # if no response is given in time_limit seconds,
             # the solver has crashed and the worker is dead:
             # start a new worker to pick up the pieces.
