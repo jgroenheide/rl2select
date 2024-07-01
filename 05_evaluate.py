@@ -72,7 +72,8 @@ def evaluate(in_queue, out_queue, nodesel, static):
             m.setIntParam('timing/clocktype', 1)
             m.setRealParam('limits/time', 90)
             utilities.init_scip_params(m, seed, static)
-            m.setRealParam('limits/objectivestop', opt_sol)
+            # TODO: activate this again
+            # m.setRealParam('limits/objectivestop', opt_sol)
 
             if nodesel is not None:
                 m.includeNodesel(nodesel=nodesel,
@@ -141,7 +142,8 @@ def collect_evaluation(instances, opt_sols, seed, n_jobs, nodesel, static, resul
     in_queue = mp.Queue()
     out_queue = mp.Queue()
     for instance in instances:
-        in_queue.put([instance, seed, opt_sols[instance]])
+        # TODO: Undo this as well.
+        in_queue.put([instance, seed, 0])  # opt_sols[instance]])
 
     workers = []
     for i in range(n_jobs):
@@ -234,10 +236,10 @@ if __name__ == "__main__":
     model = ml.MLPPolicy().to(device)
     nodesels = [None, NodeselBFS(), NodeselRandom(args.seed),
                 NodeselPolicy(model, device, "policy")]
-    # nodesels = []
+    nodesels = nodesels[-1:]
 
     # Learned models
-    for model_id in ["il_k=10_Children", "rl_mdp"]:  # , "il_k=1_Nodes"
+    for model_id in []:  # "il_k=10_Children", "rl_mdp", "il_k=1_Nodes"
         model_path = f'actor/{args.problem}/{model_id}.pkl'
         if os.path.exists(model_path):
             model = ml.MLPPolicy().to(device)
@@ -273,7 +275,7 @@ if __name__ == "__main__":
     for instance_type in ["test", "transfer"]:
         difficulty = transfer_difficulty if instance_type == "transfer" else config['difficulty'][args.problem]
         instance_dir = f'data/{args.problem}/instances'
-        instances = [str(file).replace('\\', '/') for file in
+        instances = [str(file).replace(os.sep, '/') for file in
                      glob.glob(instance_dir + f'/{instance_type}_{difficulty}/*.lp')]
 
         with open(instance_dir + f'/obj_values.json') as f:
