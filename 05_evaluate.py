@@ -72,8 +72,7 @@ def evaluate(in_queue, out_queue, nodesel, static):
             m.setIntParam('timing/clocktype', 1)
             m.setRealParam('limits/time', 90)
             utilities.init_scip_params(m, seed, static)
-            # TODO: activate this again
-            # m.setRealParam('limits/objectivestop', opt_sol)
+            m.setRealParam('limits/objectivestop', opt_sol)
 
             if nodesel is not None:
                 m.includeNodesel(nodesel=nodesel,
@@ -142,8 +141,7 @@ def collect_evaluation(instances, opt_sols, seed, n_jobs, nodesel, static, resul
     in_queue = mp.Queue()
     out_queue = mp.Queue()
     for instance in instances:
-        # TODO: Undo this as well.
-        in_queue.put([instance, seed, 0])  # opt_sols[instance]])
+        in_queue.put([instance, seed, opt_sols[instance]])
 
     workers = []
     for i in range(n_jobs):
