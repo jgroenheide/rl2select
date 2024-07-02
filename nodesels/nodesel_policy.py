@@ -27,9 +27,9 @@ class NodeselPolicy(scip.Nodesel):
 
         # check if we are within the maximal plunging depth
         plunge_depth = self.model.getPlungeDepth()
-        selnode = self.model.getBestChild()
+        # selnode = self.model.getBestChild()
         # possibly choose sibling if child is None
-        if plunge_depth <= max_plunge_depth and selnode is not None:
+        if plunge_depth <= max_plunge_depth:  # and selnode is not None:
             # get global lower and cutoff bound
             lower_bound = self.model.getLowerbound()
             cutoff_bound = self.model.getCutoffbound()
@@ -46,7 +46,11 @@ class NodeselPolicy(scip.Nodesel):
             if plunge_depth >= min_plunge_depth:
                 max_bound = lower_bound + max_plunge_quot * (cutoff_bound - lower_bound)
 
-            if selnode.getEstimate() < max_bound:
+            selnode = self.model.getBestChild()
+            if selnode is not None:  # and selnode.getEstimate() < max_bound:
+                return {'selnode': selnode}
+            selnode = self.model.getBestSibling()
+            if selnode is not None:  # and selnode.getEstimate() < max_bound:
                 return {'selnode': selnode}
 
         return {'selnode': self.model.getBestboundNode()}
