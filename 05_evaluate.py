@@ -232,7 +232,7 @@ if __name__ == "__main__":
 
     # Default: BestEstimate, BFS, Random, Untrained Policy
     model = ml.MLPPolicy().to(device)
-    nodesels = [None, NodeselBFS(), NodeselRandom(args.seed)]#,
+    nodesels = [NodeselRandom(args.seed)]  #,  None, NodeselBFS(),
                 #NodeselPolicy(model, device, "policy")]
     # nodesels = []
 
