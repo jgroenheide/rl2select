@@ -42,13 +42,14 @@ if __name__ == '__main__':
             mean_stimes = []
             current_instance = None
             for row in reader:
-                if current_instance is None:
-                    current_instance = row['instance']
+                # if current_instance is None:
+                #     current_instance = row['instance']
                 if row['instance'] != current_instance:
-                    mean_nnodes.append(np.mean(nnodes))
-                    mean_stimes.append(np.mean(stimes))
                     current_instance = row['instance']
-                    nnodes = []; stimes = []
+                    if nnodes and stimes:
+                        mean_nnodes.append(np.mean(nnodes))
+                        mean_stimes.append(np.mean(stimes))
+                        nnodes = []; stimes = []
                 nnodes.append(int(row['nnodes']))
                 stimes.append(float(row['stime']))
             mean_nnodes.append(np.mean(nnodes))
@@ -56,4 +57,3 @@ if __name__ == '__main__':
             print(f"result_file: {os.path.basename(result_file)}"
                   f" | nnodes: {gmean(mean_nnodes):.0f}*/{gstd(mean_nnodes):.2f}"
                   f" | stimes: {gmean(mean_stimes):.2f}*/{gstd(mean_stimes):.2f}")
-                # f"| alt: {np.mean(mean_stimes):.2f}+-{np.std(mean_stimes):.2f}")

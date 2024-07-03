@@ -97,6 +97,7 @@ def evaluate(in_queue, out_queue, nodesel, static):
                 'type': "row",
                 'seed': seed,
                 'instance': instance_name,
+                'status': m.getStatus(),
                 'nnodes': m.getNNodes(),
                 'nlps': m.getNLPs(),
                 'gap': m.getGap(),
@@ -256,6 +257,7 @@ if __name__ == "__main__":
     fieldnames = [
         'seed',
         'instance',
+        'status',
         'nnodes',
         'nlps',
         'gap',
