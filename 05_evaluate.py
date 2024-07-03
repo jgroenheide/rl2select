@@ -230,6 +230,11 @@ if __name__ == "__main__":
         os.environ['CUDA_VISIBLE_DEVICES'] = f'{args.gpu}'
         device = f"cuda:0"
 
+    timestamp = time.strftime('%Y-%m-%d--%H.%M.%S')
+    experiment_dir = f'experiments/{args.problem}/05_evaluate'
+    running_dir = experiment_dir + f'/{args.seed}_{timestamp}'
+    os.makedirs(running_dir, exist_ok=True)
+
     # Default: BestEstimate, BFS, Random, Untrained Policy
     model = ml.MLPPolicy().to(device)
     nodesels = [NodeselRandom(args.seed)]  #,  None, NodeselBFS(),
@@ -272,17 +277,11 @@ if __name__ == "__main__":
     results = {}
     for instance_type in ["test", "transfer"]:
         difficulty = transfer_difficulty if instance_type == "transfer" else config['difficulty'][args.problem]
-        instance_dir = f'data/{args.problem}/instances'
-        instances = [str(file).replace(os.sep, '/') for file in
-                     glob.glob(instance_dir + f'/{instance_type}_{difficulty}/*.lp')]
+        instance_dir = f'data/{args.problem}/instances/{instance_type}_{difficulty}'
+        instances = [str(file).replace(os.sep, '/') for file in glob.glob(instance_dir + f'/*.lp')]
 
         with open(instance_dir + f'/obj_values.json') as f:
             opt_sols = json.load(f)
-
-        timestamp = time.strftime('%Y-%m-%d--%H.%M.%S')
-        experiment_dir = f'experiments/{args.problem}/05_evaluate'
-        running_dir = experiment_dir + f'/{args.seed}_{timestamp}'
-        os.makedirs(running_dir, exist_ok=True)
 
         for nodesel in nodesels:
             for static in [True, False]:

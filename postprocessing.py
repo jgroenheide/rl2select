@@ -3,6 +3,7 @@
 # Usage: python 03_generate_il_samples.py <problem> <type> -s <seed> -j <njobs> #
 # * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * #
 
+import os
 import csv
 import json
 import glob
@@ -31,16 +32,15 @@ if __name__ == '__main__':
 
     experiment_dir = f'experiments/{args.problem}/05_evaluate'
     result_files = glob.glob(experiment_dir + f'/{args.running_dir}/*.csv')
-    print(result_files)
     for result_file in result_files:
         with open(result_file, newline='') as csvfile:
             reader = csv.DictReader(csvfile)
 
-            current_instance = None
-            mean_nnodes = []
-            mean_stimes = []
             nnodes = []
             stimes = []
+            mean_nnodes = []
+            mean_stimes = []
+            current_instance = None
             for row in reader:
                 if current_instance is None:
                     current_instance = row['instance']
@@ -53,7 +53,7 @@ if __name__ == '__main__':
                 stimes.append(float(row['stime']))
             mean_nnodes.append(np.mean(nnodes))
             mean_stimes.append(np.mean(stimes))
-            print(f"result_file: {result_file} "
-                  f"| nnodes: {gmean(mean_nnodes)}*/{gstd(mean_nnodes)}"
-                  f"| stimes: {gmean(mean_stimes)}*/{gstd(mean_stimes)}"
-                  f"| alt: {np.mean(mean_stimes)}+-{np.std(mean_stimes)}")
+            print(f"result_file: {os.path.basename(result_file)} "
+                  f"| nnodes: {gmean(mean_nnodes):.3f}*/{gstd(mean_nnodes):.3f}"
+                  f"| stimes: {gmean(mean_stimes):.3f}*/{gstd(mean_stimes):.3f}")
+                # f"| alt: {np.mean(mean_stimes):.3f}+-{np.std(mean_stimes):.3f}")

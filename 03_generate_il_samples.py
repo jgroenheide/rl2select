@@ -280,8 +280,7 @@ if __name__ == '__main__':
 
     rng = np.random.default_rng(args.seed)
     difficulty = config['difficulty'][args.problem]
-    # TODO: Remove "original" from path
-    sample_dir = f'data/{args.problem}/samples/k={args.ksols}_{args.sampling_type}_original'
+    sample_dir = f'data/{args.problem}/samples/k={args.ksols}_{args.sampling_type}'
 
     for instance_type in ["train", "valid"]:
         instances = glob.glob(f'data/{args.problem}/instances/{instance_type}_{difficulty}/*.lp')
