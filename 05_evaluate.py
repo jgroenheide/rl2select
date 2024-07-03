@@ -287,7 +287,7 @@ if __name__ == "__main__":
             opt_sols = json.load(f)
 
         for nodesel in nodesels:
-            for static in [True, False]:
+            for static in [True]:  # , False
                 env = "static" if static else "active"
                 experiment_id = f"{instance_type}_{env}_{nodesel}"
                 utilities.log(f"Starting experiment {experiment_id}")
