@@ -246,7 +246,7 @@ if __name__ == "__main__":
     for model_id in ["il_k=10_Children"]:  # , "rl_mdp", "il_k=1_Nodes", "rl_lb-obj_active"
         model_path = f'actor/{args.problem}/{model_id}.pkl'
         if os.path.exists(model_path):
-            model = ml.MLPPolicy().to(device)
+            model = ml.MLPPolicy(16).to(device)
             model.load_state_dict(th.load(model_path))
             nodesel = NodeselPolicy(model, device, model_id)
             nodesels.append(nodesel)
