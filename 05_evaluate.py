@@ -238,12 +238,12 @@ if __name__ == "__main__":
 
     # Default: BestEstimate, BFS, Random, Untrained Policy
     model = ml.MLPPolicy().to(device)
-    nodesels = [NodeselRandom(args.seed)]  #,  None, NodeselBFS(),
-                #NodeselPolicy(model, device, "policy")]
+    nodesels = (  # [None, NodeselBFS(), NodeselRandom(args.seed),
+                [NodeselPolicy(model, device, "policy")])
     # nodesels = []
 
     # Learned models
-    for model_id in []:  # "il_k=10_Children", "rl_mdp", "il_k=1_Nodes", "rl_lb-obj_active"
+    for model_id in ["il_k=10_Children"]:  # , "rl_mdp", "il_k=1_Nodes", "rl_lb-obj_active"
         model_path = f'actor/{args.problem}/{model_id}.pkl'
         if os.path.exists(model_path):
             model = ml.MLPPolicy().to(device)
@@ -282,6 +282,7 @@ if __name__ == "__main__":
         instance_dir = f'data/{args.problem}/instances/{instance_type}_{difficulty}'
         instances = [str(file).replace(os.sep, '/') for file in glob.glob(instance_dir + f'/*.lp')]
 
+        instance_dir = f'data/{args.problem}/instances'
         with open(instance_dir + f'/obj_values.json') as f:
             opt_sols = json.load(f)
 
