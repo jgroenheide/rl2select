@@ -188,8 +188,10 @@ class Agent(threading.Thread):
                         # negative return equals penalty before action - total penalty
                         transition['returns'] = transition['penalty'] - total_penalty
                 else:  # self.metric = "gub+"
-                    for transition in nodesel_agent.transitions:
-                        transition['returns'] = transition['reward']
+                    total_reward = 0
+                    for transition in nodesel_agent.transitions[::-1]:
+                        total_reward += transition['reward']
+                        transition['returns'] = total_reward
                     # subtree_sizes = nodesel_agent.tree_recorder.calculate_subtree_sizes()
                     # for transition in nodesel_agent.transitions:
                     #     transition['returns'] = -subtree_sizes[transition['node_id']] - 1

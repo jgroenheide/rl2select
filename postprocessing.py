@@ -54,5 +54,6 @@ if __name__ == '__main__':
             mean_nnodes.append(np.mean(nnodes))
             mean_stimes.append(np.mean(stimes))
             print(f"result_file: {result_file} "
-                  f"| nnodes: {gstd(mean_nnodes)}"
-                  f"| stimes: {gstd(mean_stimes)}")
+                  f"| nnodes: {gmean(mean_nnodes)}*/{gstd(mean_nnodes)}"
+                  f"| stimes: {gmean(mean_stimes)}*/{gstd(mean_stimes)}"
+                  f"| alt: {np.mean(mean_stimes)}+-{np.std(mean_stimes)}")

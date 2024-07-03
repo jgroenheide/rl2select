@@ -81,8 +81,7 @@ if __name__ == '__main__':
     instance_dir = f'data/{args.problem}/instances'
     # instance_dir = f'data/{args.problem}/instances/valid_{difficulty}'
     valid_files = [str(file).replace(os.sep, '/') for file in
-                   rng.choice(glob.glob(instance_dir + f'/valid_{difficulty}/*.lp'),
-                              size=config['num_valid_instances'], replace=False)]
+                   glob.glob(instance_dir + f'/valid_{difficulty}/*.lp')[:config['num_valid_instances']]]
 
     with open(instance_dir + '/obj_values.json') as f:
         opt_sols = json.load(f)
