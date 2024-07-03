@@ -32,7 +32,7 @@ if __name__ == '__main__':
 
     experiment_dir = f'experiments/{args.problem}/05_evaluate'
     result_files = glob.glob(experiment_dir + f'/{args.running_dir}/*.csv')
-    for result_file in result_files:
+    for result_file in sorted(result_files, key=len):
         with open(result_file, newline='') as csvfile:
             reader = csv.DictReader(csvfile)
 
@@ -53,7 +53,7 @@ if __name__ == '__main__':
                 stimes.append(float(row['stime']))
             mean_nnodes.append(np.mean(nnodes))
             mean_stimes.append(np.mean(stimes))
-            print(f"result_file: {os.path.basename(result_file)} "
-                  f"| nnodes: {gmean(mean_nnodes):.3f}*/{gstd(mean_nnodes):.3f}"
-                  f"| stimes: {gmean(mean_stimes):.3f}*/{gstd(mean_stimes):.3f}")
-                # f"| alt: {np.mean(mean_stimes):.3f}+-{np.std(mean_stimes):.3f}")
+            print(f"result_file: {os.path.basename(result_file)}"
+                  f" | nnodes: {gmean(mean_nnodes):.0f}*/{gstd(mean_nnodes):.2f}"
+                  f" | stimes: {gmean(mean_stimes):.2f}*/{gstd(mean_stimes):.2f}")
+                # f"| alt: {np.mean(mean_stimes):.2f}+-{np.std(mean_stimes):.2f}")
