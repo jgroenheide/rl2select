@@ -132,7 +132,7 @@ class NodeselOracle(NodeselEstimate):
               f"| Node {node2.getNumber()}: {sol_rank[1]} "
               f"| Action: {['left', 'right'][action]}")
 
-        state = extract.extract_MLP_state_original(self.model, node1, node2)
+        state = extract.extract_MLP_state(self.model, node1, node2)
         self.sampler.create_sample(*state, action)
 
         return super().nodecomp(node1, node2)
