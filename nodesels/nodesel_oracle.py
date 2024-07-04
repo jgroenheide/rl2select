@@ -84,15 +84,14 @@ class NodeselOracle(NodeselEstimate):
             # self.model.getBestChild()
         elif self.sampling == "Nodes":
             self.model.getBestNode()
-        # return super().nodeselect()
-        selnode = super().nodeselect()
-        print(f"Chose: {selnode['selnode'].getNumber()}")
-        print("*** ====================== ***")
-        return selnode
+        return super().nodeselect()
+        # selnode = super().nodeselect()
+        # print(f"Chose: {selnode['selnode'].getNumber()}")
+        # print("*** ====================== ***")
+        # return selnode
 
     def nodecomp(self, node1, node2):
         siblings = node1.getParent() == node2.getParent()
-        print(node1.getNumber(), node2.getNumber())
         if self.sampling == "Children" and not siblings:
             return super().nodecomp(node1, node2)
 

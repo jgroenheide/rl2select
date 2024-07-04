@@ -26,7 +26,6 @@ class NodeselAgent(NodeselPolicy):
         self.penalty = 0
         self.GUB = None
         self.gap = None
-        self.gamma = 1
 
         self.iter_count = 0
         self.info = {
@@ -38,6 +37,8 @@ class NodeselAgent(NodeselPolicy):
     def nodeinit(self, *args, **kwargs):
         self.GUB = self.model.getUpperbound()
         self.gap = self.GUB - self.opt_sol
+        if self.metric == "gub+" and self.sample_rate > 0:
+            self.sample_rate = 1
 
     def nodecomp(self, node1, node2):
         if node1.getParent() != node2.getParent(): return 0
@@ -59,11 +60,9 @@ class NodeselAgent(NodeselPolicy):
             lower_bound = self.model.getCurrentNode().getLowerbound()
             self.penalty += self.model.isGT(lower_bound, self.opt_sol)
             reward = -self.model.isGT(lower_bound, self.opt_sol)
-            # print(f"lb: {lower_bound} | opt_sol: {self.opt_sol} | reward: {reward}")
-        elif self.metric == "gub+":
+        elif self.metric == "gub+":  # For primal bound improvement
             GUB = self.model.getUpperbound()
-            reward = self.gamma * (self.GUB - GUB) / self.gap  # For primal bound improvement
-            self.gamma *= 0.997
+            reward = (self.GUB - GUB) / self.gap
             self.GUB = GUB
 
         # collect transition samples if requested

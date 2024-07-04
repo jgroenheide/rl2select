@@ -1,8 +1,8 @@
 # * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * #
 # Train agent using the reinforcement learning method. User must provide a      #
-# metric in {mdp, tmdp+DFS, tmdp+ObjLim}. The training parameters are read from   #
+# metric in {nnodes, lb-obj, gub+}. The training parameters are read from       #
 # config.json which is overridden by command line inputs, if provided.          #
-# Usage: python 04_train_rl.py <type> -s <seed> -g <cudaId>                     #
+# Usage: python 04_train_rl.py <problem> <metric> -s <seed> -g <cudaId>         #
 # * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * #
 
 import os
@@ -38,12 +38,6 @@ if __name__ == '__main__':
         help='Training metric.',
         choices=["nnodes", "lb-obj", "gub+"],
     )
-    # parser.add_argument(
-    #     'static',
-    #     help='Training metric',
-    #     default=False,
-    #     type=bool
-    # )
     parser.add_argument(
         '-s', '--seed',
         help='Random generator seed.',
@@ -116,7 +110,7 @@ if __name__ == '__main__':
     paramfile = running_dir + f'/best_params_rl-{args.metric}.pkl'
     wb.init(project="rl2select", config=config)
 
-    static = False
+    static = True
 
     log(f"training instances: {len(train_files)}", logfile)
     log(f"validation instances: {len(valid_batch)}", logfile)

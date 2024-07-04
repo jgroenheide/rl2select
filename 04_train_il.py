@@ -1,7 +1,7 @@
 # * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * #
 # Train agent using the imitation learning method of Gasse et al.               #
 # Output is saved to experiments/<problem>/04_train_il/<seed>_<timestamp>       #
-# Usage: python 04_train_il.py <type> -s <seed> -g <cudaId>                     #
+# Usage: python 04_train_il.py <problem> <sample_dir> -s <seed> -g <cudaId>     #
 # * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * #
 
 import os
@@ -66,7 +66,6 @@ def process(policy, data_loader, optimizer=None):
                 optimizer.zero_grad()
                 loss.backward()  # Does backpropagation and calculates gradients
                 optimizer.step()  # Updates the weights accordingly
-                # wb.watch(policy)  # Save gradients to W&B
 
             avg_loss += loss.item() * action.shape[0]
             avg_acc += th.sum(th.eq(y_pred, target)).item()
@@ -130,7 +129,7 @@ if __name__ == "__main__":
     train_files = [str(file) for file in glob.glob(sample_dir + '/*.pkl')]
 
     if config['model'] == "MLP":
-        model = ml.MLPPolicy(16).to(device)
+        model = ml.MLPPolicy().to(device)
 
         train_data = data.Dataset(train_files)
         valid_data = data.Dataset(valid_files)
@@ -217,5 +216,4 @@ if __name__ == "__main__":
     log(f"PROCESS COMPLETED: BEST MODEL FOUND IN EPOCH {best_epoch}", logfile)
     log(f"BEST VALID LOSS: {valid_loss:0.3f} | BEST VALID ACCURACY: {valid_acc:0.3f}", logfile)
     os.makedirs(f'actor/{args.problem}', exist_ok=True)
-    # TODO: Remove "original" from path
-    th.save(model.state_dict(), f'actor/{args.problem}/il_{args.dir}_original.pkl')
+    th.save(model.state_dict(), f'actor/{args.problem}/il_{args.dir}.pkl')

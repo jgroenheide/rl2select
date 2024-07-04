@@ -167,7 +167,6 @@ def collect_samples(instances, sample_dir, n_jobs, k_sols, max_samples, sampling
     n_samples = 0
     in_buffer = 0
 
-    # action_count = [0, 0]
     while n_samples < max_samples:
         try: sample = out_queue.get(timeout=100)
         # if no response is given in time_limit seconds,
@@ -211,8 +210,6 @@ def collect_samples(instances, sample_dir, n_jobs, k_sols, max_samples, sampling
                     # move to next episode
                     del buffer[episode_i]
 
-                    # action_count[0] += sample['action_count'][0]
-                    # action_count[1] += sample['action_count'][1]
                     print(f"[m {os.getpid()}] episode {sample['episode']}:"
                           f" {n_samples} / {max_samples} samples written.")
 
@@ -280,12 +277,12 @@ if __name__ == '__main__':
 
     rng = np.random.default_rng(args.seed)
     difficulty = config['difficulty'][args.problem]
-    sample_dir = f'data/{args.problem}/samples/k={args.ksols}_{args.sampling_type}'
+    sample_dir = f'data/{args.problem}/samples/k={args.ksols}_{args.sampling_type}_adjusted'
 
     for instance_type in ["train", "valid"]:
-        instances = glob.glob(f'data/{args.problem}/instances/{instance_type}_{difficulty}/*.lp')
         out_dir = sample_dir + f'/{instance_type}_{difficulty}'
-        os.makedirs(out_dir, exist_ok=True)
+        # os.makedirs(out_dir, exist_ok=True)
+        instances = glob.glob(f'data/{args.problem}/instances/{instance_type}_{difficulty}/*.lp')
         num_samples = args.ratio * len(instances)
         print(f"{len(instances)} {instance_type} instances for {num_samples} {args.sampling_type} samples")
         collect_samples(instances, out_dir, args.njobs, args.ksols, num_samples, args.sampling_type, rng)

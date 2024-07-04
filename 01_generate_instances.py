@@ -1,8 +1,7 @@
 # * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * #
-# Generates MILP instances of one of the following types:                       #
-# (gisp, indset, setcover, cauctions, cflp or mknapsack).                       #
+# Generates MILP instances of one of the following types: config['problems']    #
 # Four directories are created: train, test, valid, and transfer.               #
-# Usage: python 01_generate_instances.py <type> -s <seed>                       #
+# Usage: python 01_generate_instances.py <problem> -s <seed>                    #
 # * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * #
 
 import os

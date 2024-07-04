@@ -1,6 +1,5 @@
 import threading
 import queue
-import numpy as np
 
 from pyscipopt import scip
 
@@ -182,7 +181,7 @@ class Agent(threading.Thread):
 
             # post-process the collected samples (credit assignment)
             if sample_rate > 0:
-                if self.metric in ["nnodes"]:  # , "lb-obj"
+                if self.metric in ["nnodes", "lb-obj"]:
                     total_penalty = nodesel_agent.penalty
                     for transition in nodesel_agent.transitions:
                         # negative return equals penalty before action - total penalty
@@ -192,6 +191,7 @@ class Agent(threading.Thread):
                     for transition in nodesel_agent.transitions[::-1]:
                         total_reward += transition['reward']
                         transition['returns'] = total_reward
+                        total_reward *= 0.997
                     # subtree_sizes = nodesel_agent.tree_recorder.calculate_subtree_sizes()
                     # for transition in nodesel_agent.transitions:
                     #     transition['returns'] = -subtree_sizes[transition['node_id']] - 1

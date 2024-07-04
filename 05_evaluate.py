@@ -1,8 +1,8 @@
 # * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * #
-# Evaluate all GCNN models (il, mdp, tmdp+DFS, tmdp+ObjLim) and SCIP's default  #
-# rule, on 2 benchmarks (test and transfer). Each instance-model pair is solved #
-# with 5 different seeds. Output is written into a csv file.                    #
-# Usage: python 05_evaluate.py <type> -g <cudaId>                               #
+# Evaluate all models (il, rl, untrained, and random), B*FS and SCIP's default  #
+# rule on 2 benchmark sets (test and transfer). Each instance-model pair is     #
+# solved with 5 different seeds. Results are written into csv files.            #
+# Usage: python 05_evaluate.py <problem> -s <seed> -g <cudaId> -j <njobs>       #
 # * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * #
 
 import os

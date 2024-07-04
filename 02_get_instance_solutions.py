@@ -1,7 +1,7 @@
 # * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * #
 # Generates file with solutions to the training instances.                      #
 # Needs to be run once before training.                                         #
-# Usage: python 02_get_instance_solutions.py <type> -j <njobs> -n <ninstances>  #
+# Usage: python 02_get_instance_solutions.py <problem> -s <seed> -j <njobs>     #
 # * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * #
 
 import os
@@ -261,10 +261,8 @@ def collector(problem, config, n_jobs, k_sols, random):
         daemon=True)
     dispatcher.start()
 
-    tmp_dirs = []
-    obj_values = {}
-
     nnodes = []
+    tmp_dirs = []
     for instance_type, num_instances in config['num_instances']:
         if instance_type == "transfer":
             # Stop the dispatcher
@@ -284,6 +282,8 @@ def collector(problem, config, n_jobs, k_sols, random):
                 args=(in_queue, problem, random, True),
                 daemon=True)
             dispatcher.start()
+
+        obj_values = {}
 
         tmp_dir = None
         instance_dir = None
@@ -306,12 +306,12 @@ def collector(problem, config, n_jobs, k_sols, random):
                 nnodes.append(instance['nnodes'])
 
             obj_values[new_filename] = instance['opt_sol']
+        # secure objective values as soon as possible to avoid losing data
         with open(instance_dir + f'/obj_values.json', "w") as f:
             json.dump(obj_values, f)
 
-    # secure objective values as soon as possible to avoid losing data
-    with open(f'data/{problem}/instances/obj_values.json', "w") as f:
-        json.dump(obj_values, f)
+    # with open(f'data/{problem}/instances/obj_values.json', "w") as f:
+    #     json.dump(obj_values, f)
 
     print({'nnodes_mean': np.mean(nnodes), 'nnodes_std': np.std(nnodes)})
 
@@ -354,12 +354,6 @@ if __name__ == '__main__':
         default=1,
         type=int,
     )
-    parser.add_argument(
-        '-v', '--verbose',
-        help="Verbosity of the program.",
-        default=0,
-        type=int,
-    )
     args = parser.parse_args()
     config['num_instances'] = [("train", 20),
                                ("valid", 10),
@@ -368,6 +362,8 @@ if __name__ == '__main__':
 
     rng = np.random.default_rng(args.seed)
     if os.path.exists(f'data/{args.problem}/instances'):
+        # if the instances are already generated, only do solving
         collect_solutions(args.problem, config, args.njobs, args.ksols, rng)
     else:
+        # if the instances do not exist yet, generate and solve them
         collector(args.problem, config, args.njobs, args.ksols, rng)
