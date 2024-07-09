@@ -153,13 +153,6 @@ class NodeselEstimate(scip.Nodesel):
             # we want to plunge again: prioritize children over siblings, and siblings over leaves,
             # but only select a child or sibling if its estimate is small enough;
             # prefer using nodes with higher node selection priority assigned by the branching rule
-            # order = [self.model.getPrioChild(),
-            #          self.model.getBestChild(),
-            #          self.model.getPrioSibling(),
-            #          self.model.getBestSibling()]
-            # for selnode in order:
-            #     if selnode is not None and selnode.getEstimate() < max_bound:
-            #         return {'selnode': selnode}
             selnode = self.model.getPrioChild()
             if selnode is not None and selnode.getEstimate() < max_bound:
                 return {'selnode': selnode}

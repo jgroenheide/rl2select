@@ -1,3 +1,9 @@
+# * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * #
+# Creates a pool of n distributed agents, with thread-safe batched access to    #
+# the policy. Runs training episodes and collects and processes transitions.    #
+# Based on code by Scavuzzo et al. and adjusted to work with node selection.    #
+# * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * #
+
 import threading
 import queue
 

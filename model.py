@@ -1,3 +1,8 @@
+# * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * #
+# Contains model definitions for Siamese MLP and GNN architectures.             #
+# Based on code by Labassi et al., 2022.                                        #
+# * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * #
+
 import torch as th
 import torch.nn.functional as F
 import torch_geometric
